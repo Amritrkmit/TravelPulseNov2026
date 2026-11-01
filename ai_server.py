@@ -4,6 +4,7 @@ from pathlib import Path
 from functools import lru_cache
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -12,6 +13,22 @@ import openpyxl
 BASE=Path(__file__).resolve().parent
 load_dotenv(BASE/'.env')
 app=FastAPI(title='Travel Pulse Agent')
+# CORS: which web pages may call this server from the browser.
+#   • any page on localhost / 127.0.0.1 (any port)
+#   • the published dashboard on GitHub Pages (below). Add more with ALLOWED_ORIGINS="https://a.example,https://b.example" in .env
+# This server only listens on 127.0.0.1, so "the visitor's own computer" is the only machine that can ever reach it.
+_EXTRA_ORIGINS=[o.strip() for o in os.getenv('ALLOWED_ORIGINS','').split(',') if o.strip()]
+ALLOWED_ORIGINS=['https://amritrkmit.github.io']+_EXTRA_ORIGINS
+app.add_middleware(CORSMiddleware,allow_origins=ALLOWED_ORIGINS,allow_origin_regex=r'^https?://(localhost|127\.0\.0\.1)(:\d+)?$',allow_methods=['GET','POST'],allow_headers=['Content-Type'])
+
+# Chrome / Edge ask permission before a PUBLIC website talks to a server on the visitor's own computer
+# ("Private Network Access"). Its preflight request needs this extra header in the answer.
+@app.middleware('http')
+async def private_network_access(request,call_next):
+    resp=await call_next(request)
+    if request.headers.get('access-control-request-private-network','').lower()=='true':
+        resp.headers['Access-Control-Allow-Private-Network']='true'
+    return resp
 
 @lru_cache(maxsize=1)
 def data():
@@ -101,6 +118,7 @@ TOOLS=[
  {'type':'function','function':{'name':'multiselect','description':'Calculate multi-select checkbox question distributions such as Q16 (airline considerations), Q9 (destination considerations), Q11 (budget reduction methods). Use valid eligible respondent base.','parameters':{'type':'object','properties':{'prefix':{'type':'string'},'filters':{'type':'array','items':{'type':'object','properties':{'field':{'type':'string'},'value':{'type':'string'},'values':{'type':'array','items':{'type':'string'}},'operator':{'type':'string'}},'required':['field']}},'top':{'type':'integer'}},'required':['prefix']}}}
 ]
 from agent_instructions import SYSTEM
+from answer_filter import strip_counts, has_small_base, finalize_answer
 from survey_engine import analyze, multiselect, search_fields, survey_profile, dashboard_json_catalog
 
 FUNCTIONS = {
@@ -131,19 +149,38 @@ def chat(req:ChatRequest):
     if not messages or messages[-1].get('role')!='user' or messages[-1].get('content')!=req.message:
         messages.append({'role':'user','content':req.message})
     try:
+        small_base=False
         for _ in range(10):
             response=client.chat.completions.create(model=os.getenv('OPENAI_MODEL','gpt-4o-mini'),messages=messages,tools=TOOLS,tool_choice='required' if _ == 0 else 'auto',temperature=0)
             msg=response.choices[0].message
             messages.append(msg)
-            if not msg.tool_calls:return {'answer':msg.content or 'No supported answer found in the survey.'}
+            if not msg.tool_calls:return {'answer':finalize_answer(msg.content or 'No supported answer found in the survey.',small_base)}
             for call in msg.tool_calls:
                 try:
                     args=json.loads(call.function.arguments)
-                    result=FUNCTIONS[call.function.name](**args)
+                    result=strip_counts(FUNCTIONS[call.function.name](**args))   # the model never sees counts / bases
+                    small_base=small_base or has_small_base(result)
                 except Exception as e:result={'error':str(e)}
                 messages.append({'role':'tool','tool_call_id':call.id,'content':json.dumps(result,ensure_ascii=False,default=str)[:25000]})
         return {'answer':'This question requires more analysis steps. Please narrow the question to a specific metric or market.'}
     except Exception as e:
         raise HTTPException(502,f'AI service error: {type(e).__name__}: {str(e)[:300]}')
 
-app.mount('/',StaticFiles(directory=str(BASE),html=True),name='dashboard')
+# The server hands out the dashboard (HTML, JS, CSS, JSON data, images) but NEVER its own files:
+# .env (API key), source code, the raw survey Excel, .git, notes. Without this, anyone who can reach the server
+# (same Wi-Fi, a shared tunnel link ...) could download http://<address>/.env
+STATIC_BLOCK=re.compile(
+    r'(^|/)\.'                                                   # any dotfile / dot-folder: .env .git .gitignore .venv
+    r'|:'                                                          # Windows alternate data streams (file.py::$DATA)
+    r'|\.(py|pyc|bat|cmd|sh|env|md|txt|xlsx|xls|xlsm|log|toml|cfg|ini|lock|ya?ml)$'
+    r'|(^|/)(__pycache__|knowledge|tests|node_modules|venv)(/|$)'
+    r'|(^|/)package(-lock)?\.json$',re.I)
+
+class SafeStaticFiles(StaticFiles):
+    async def get_response(self,path:str,scope):
+        p=path.replace('\\','/').rstrip(' .')                    # Windows ignores trailing dots/spaces ("ai_server.py.")
+        if STATIC_BLOCK.search(p) or STATIC_BLOCK.search(path):
+            raise HTTPException(404,'Not Found')
+        return await super().get_response(path,scope)
+
+app.mount('/',SafeStaticFiles(directory=str(BASE),html=True),name='dashboard')

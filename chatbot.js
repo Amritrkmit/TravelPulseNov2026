@@ -262,13 +262,70 @@
     if (t) t.parentNode.removeChild(t);
   }
 
-  /* ── OpenAI API call (direct, no backend) ────────────────────── */
+  /* ── Chat backend call (FastAPI server: ai_server.py, runs on YOUR computer) ──────────────
+     The chat is answered by ai_server.py (start it with RUN_AI_CHATBOT.bat and keep the window open).
+     Where the dashboard is opened from does not matter:
+       • from the server itself (http://127.0.0.1:8000)  → same-origin call
+       • from another local port (Live Server …)          → finds the local server
+       • from a hosted copy (e.g. GitHub Pages)           → talks to the server on the visitor's own computer
+     To force one address:  window.TP_CHAT_API_BASE = 'http://127.0.0.1:8002'  (before this script).        */
+  var API_BASE = String(window.TP_CHAT_API_BASE || '').replace(/\/+$/, '');
+  var LOCAL_BASES = ['http://127.0.0.1:8000', 'http://127.0.0.1:8002'];   /* ports the chat server is usually started on */
+  var onLocalHost = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+  var BASE_KEY = 'tpChatBase';
+
+  function candidateBases() {
+    if (API_BASE) return [API_BASE];
+    var list = [];
+    function add(b) { if (list.indexOf(b) < 0 && b !== location.origin) list.push(b); }
+    if (onLocalHost) list.push('');                       /* the server that served this page */
+    var remembered = null; try { remembered = sessionStorage.getItem(BASE_KEY); } catch (e) { /* storage blocked */ }
+    if (remembered) add(remembered);                      /* the one that worked last time first */
+    LOCAL_BASES.forEach(add);
+    return list;
+  }
+
+  function postChat(base, userMessage) {
+    return fetch(base + '/api/chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: userMessage, history: history.slice(-MAX_HISTORY) })
+    }).then(function (r) {
+      return r.text().then(function (t) {
+        var d = null; try { d = JSON.parse(t); } catch (e) { /* not JSON */ }
+        if (d === null || typeof d !== 'object') {            /* an HTML page (404/405 …) instead of the API */
+          var err = new Error('NOT_JSON'); err.notJson = true; err.status = r.status; throw err;
+        }
+        if (!r.ok) throw new Error(d.detail || d.error || ('Server error ' + r.status));
+        return d;
+      });
+    });
+  }
+
+  function tryBases(list, i, userMessage) {
+    return postChat(list[i], userMessage).then(function (d) {
+      if (list[i]) { try { sessionStorage.setItem(BASE_KEY, list[i]); } catch (e) { /* ignore */ } }
+      return d;
+    }, function (e) {
+      var unreachable = e && (e.notJson || e instanceof TypeError);
+      if (unreachable && i + 1 < list.length) return tryBases(list, i + 1, userMessage);
+      throw e;
+    });
+  }
+
+  function friendlyError(e) {
+    if (e && (e.notJson || e instanceof TypeError)) {
+      return onLocalHost
+        ? 'The chat server could not be reached from this page. Start it with RUN_AI_CHATBOT.bat, then open the dashboard at http://127.0.0.1:8000 .'
+        : 'The chat server is not running on your computer. Start it with RUN_AI_CHATBOT.bat, keep that window open, then ask again. ' +
+          'If your browser asks to allow access to devices on your local network, choose Allow.';
+    }
+    return (e && e.message) || String(e);
+  }
+
   function callOpenAI(userMessage, apiKey, onDone, onError) {
-    fetch('/api/chat', {method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({message:userMessage,history:history.slice(-MAX_HISTORY)})})
-      .then(function(r){return r.json().then(function(d){if(!r.ok) throw Error(d.detail||'Server error');return d;});})
-      .then(function(d){onDone(d.answer||'No answer available');})
-      .catch(function(e){onError(e.message||String(e));});
+    tryBases(candidateBases(), 0, userMessage)
+      .then(function (d) { onDone(d.answer || 'No answer available'); })
+      .catch(function (e) { onError(friendlyError(e)); });
   }
 
   /* ── Send message ────────────────────────────────────────────── */
