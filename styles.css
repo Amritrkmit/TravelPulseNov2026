@@ -404,7 +404,7 @@ body.hotel-active .tab-question-section{margin-top:10px}
 .chip-clear:hover{background:var(--red);border-color:var(--red);color:#fff}
 
 /* ── MAIN LAYOUT ─────────────────────────────────────────────── */
-main{padding:10px 22px 18px;max-width:1600px;width:100%;margin:auto}
+main{padding:0px 22px 18px;max-width:1600px;width:100%;margin:auto}
 .tab-panel[hidden], [hidden]{display:none !important}
 .tab-intro{color:var(--muted);font-size:10px;margin:0 0 8px;padding:7px 10px;background:#fff;border-left:3px solid var(--orange)}
 
@@ -420,7 +420,7 @@ h2{font-family:Manrope,sans-serif;font-size:12px;margin:0;color:var(--ink);line-
   display:flex;align-items:flex-start;gap:8px;
   background:var(--purple);color:#fff;
   border-radius:3px;padding:9px 12px;margin:0 0 10px;
-  font-size:10px;line-height:1.5
+  font-size:14px;line-height:1.5
 }
 .insight-banner b,.insight-banner strong{color:var(--yellow)}
 .insight-tag{
@@ -825,7 +825,23 @@ body.segments-active #filtersBar{display:none!important}
 .segment-cohort-sticky{position:sticky;top:42px;z-index:15;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:start;height:var(--segments-cohort-header-height);padding:8px 0 10px;background:var(--bg)}
 .segment-cohort-sticky .segment-profile-card{height:166px}
 .segment-question-stack{display:grid;gap:0px}
-.segment-question-section{min-width:0}
+.segment-question-section{position:relative;min-width:0}
+.segment-question-section[data-journey-stage],.segment-spend-section[data-journey-stage]{padding-left:34px}
+.segment-spend-section{position:relative;margin:8px 0 16px}
+.segment-spend-section .segment-spend-section-heading{margin:8px 0 10px}
+.segment-spend-section .segment-outcome-grid{margin-left:0;margin-right:0}
+.segment-journey-rail{position:absolute;top:0;bottom:0;left:5px;display:grid;width:20px;grid-template-columns:20px;grid-template-rows:minmax(0,1fr) var(--segment-journey-label-height,42px) minmax(0,1fr);row-gap:8px;align-items:stretch;color:var(--segment-rail-start);pointer-events:none;opacity:0;transform:translateX(-4px);transition:opacity .2s ease,transform .2s ease}
+.segment-journey-rail.is-scroll-active{opacity:1;transform:translateX(0)}
+.segment-journey-rail::before,.segment-journey-rail::after{content:"";grid-column:1;justify-self:center;display:block;width:3px;height:100%;border-radius:3px;background:linear-gradient(180deg,var(--segment-rail-start),var(--segment-rail-end));opacity:.92}
+.segment-journey-rail::before{grid-row:1}
+.segment-journey-rail::after{grid-row:3}
+.segment-journey-rail span{grid-column:1;grid-row:2;align-self:center;justify-self:center;width:max-content;height:max-content;padding:0;background:linear-gradient(180deg,var(--segment-rail-start),var(--segment-rail-end));background-clip:text;-webkit-background-clip:text;color:transparent;-webkit-text-fill-color:transparent;font:800 10px Manrope;letter-spacing:.12em;line-height:1;text-align:center;text-transform:uppercase;white-space:nowrap;transform:rotate(-90deg)}
+.segment-question-section[data-journey-stage="Inspire"],.segment-spend-section[data-journey-stage="Inspire"]{--segment-rail-start:#530095;--segment-rail-end:#00B5AC}
+.segment-question-section[data-journey-stage="Plan"],.segment-spend-section[data-journey-stage="Plan"]{--segment-rail-start:#00B5AC;--segment-rail-end:#530095}
+.segment-question-section[data-journey-stage="Book"],.segment-spend-section[data-journey-stage="Book"]{--segment-rail-start:#230B54;--segment-rail-end:#530095}
+.segment-question-section[data-journey-stage="Airline"],.segment-spend-section[data-journey-stage="Airline"]{--segment-rail-start:#230B54;--segment-rail-end:#00B5AC}
+.segment-question-section[data-journey-stage="Hotel"],.segment-spend-section[data-journey-stage="Hotel"]{--segment-rail-start:#530095;--segment-rail-end:#FF5635}
+@media(prefers-reduced-motion:reduce){.segment-journey-rail{transition:none}}
 .segment-question-heading{position:sticky;top:calc(42px + var(--segments-cohort-header-height));z-index:14;margin-bottom:6px;padding:4px 2px 5px;border-bottom:1px solid #ded6e9;background:var(--bg)}
 .segment-question-heading h3{margin:0;color:#342a3b;font:800 14px Manrope;line-height:1.25}
 .segment-spend-section-heading h3{margin:0;color:#342a3b;font:800 14px Manrope;line-height:1.25}
@@ -846,6 +862,30 @@ body.segments-active #filtersBar{display:none!important}
 .segment-question-section[aria-label^="Q14 "] .seg-viz::-webkit-scrollbar{width:8px}
 .segment-question-section[aria-label^="Q14 "] .seg-viz::-webkit-scrollbar-track{background:#f2eef5;border-radius:4px}
 .segment-question-section[aria-label^="Q14 "] .seg-viz::-webkit-scrollbar-thumb{background:#9a8aa9;border-radius:4px}
+.segment-question-section[aria-label^="Q16 "] .segment-profile-card--bars{height:380px}
+.segment-question-section[aria-label^="Q16 "] .segment-profile-body{display:flex;flex:1;flex-direction:column;min-height:0;overflow:hidden}
+.segment-question-section[aria-label^="Q16 "] .seg-viz{flex:1;align-items:stretch;justify-content:flex-start;min-height:0;overflow-x:hidden;overflow-y:auto;scrollbar-gutter:stable;scrollbar-width:thin;scrollbar-color:#9a8aa9 #f2eef5}
+.segment-question-section[aria-label^="Q16 "] .seg-viz::-webkit-scrollbar{width:8px}
+.segment-question-section[aria-label^="Q16 "] .seg-viz::-webkit-scrollbar-track{background:#f2eef5;border-radius:4px}
+.segment-question-section[aria-label^="Q16 "] .seg-viz::-webkit-scrollbar-thumb{background:#9a8aa9;border-radius:4px}
+.seg-area-line-svg{width:100%;height:auto;overflow:visible}
+.seg-area-line-svg .gridline line{stroke:#e8e2ed;stroke-dasharray:2 3}
+.seg-area-line-svg .gridline text,.seg-area-y-axis text{font-size:12px!important;font-weight:500!important;fill:#530095!important}
+.seg-area-drop{stroke:#b995d6;stroke-width:1.2;stroke-dasharray:3 3}
+.seg-area-line{fill:none;stroke:#530095;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.seg-area-dot{fill:#530095;stroke:#fff;stroke-width:2;transition:r .15s ease}
+.seg-area-point{cursor:default;outline:none}
+.seg-area-point:hover .seg-area-dot,.seg-area-point:focus .seg-area-dot{r:7;stroke:#dbe9f7}
+.seg-area-value{font-size:12px!important;font-weight:500!important;fill:#530095}
+.seg-area-label{font:600 9px "DM Sans",sans-serif;fill:#453c4a}
+.seg-percentage-bars{overflow:visible}
+.seg-percentage-bars .seg-percent-axis line{stroke:#e7e7e7}
+.seg-percentage-bars .seg-percent-axis text,.seg-percentage-bars .seg-percent-labels text{font-size:12px!important;font-weight:500!important;fill:#530095!important}
+.seg-percent-bar{cursor:default}
+.seg-percent-fill{transition:filter .15s ease}
+.seg-percent-bar:hover .seg-percent-fill{filter:brightness(1.05)}
+.seg-percent-badge{filter:drop-shadow(0 1px 2px rgba(35,11,84,.18))}
+.seg-percent-value{font-size:10px;font-weight:700;fill:#530095;pointer-events:none}
 .segment-question-section[aria-label^="Q21 "] .segment-profile-card--bars{max-height:360px;overflow-x:hidden;overflow-y:auto;scrollbar-gutter:stable}
 .segment-simple-card-head{display:grid;grid-template-columns:1fr auto;align-items:baseline;gap:4px 8px;margin-bottom:11px;padding-bottom:8px;border-bottom:1px solid #e9e3ef}
 .segment-simple-card-head span{grid-column:1/-1;color:#746a7b;font:800 8px Manrope;text-transform:uppercase}
@@ -904,6 +944,8 @@ body.segments-active #filtersBar{display:none!important}
   .segment-photo-caption h3{font-size:12px}
   .segment-photo-caption strong{font-size:8px}
   .segment-cohort-grid,.segment-outcome-grid{grid-template-columns:1fr}
+  .segment-question-section[data-journey-stage],.segment-spend-section[data-journey-stage]{padding-left:29px}
+  .segment-journey-rail{left:2px;width:18px;grid-template-columns:18px}
   .segment-card-photo{height:190px}
 }
 @media (max-width:720px){
@@ -3501,6 +3543,16 @@ body.dashboard-is-loading .tabs {
   border: 1px solid #dcd5eb;
   overflow: hidden;
   box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.grid.hotel-order-two>.hotel-slide-card.q24-drill-open {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+#hotelStrategyChart.chart {
+  min-height: 0 !important;
+  max-height: 320px !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
 }
 .hotel-slide-card .chart {
   padding: 10px 14px 14px;

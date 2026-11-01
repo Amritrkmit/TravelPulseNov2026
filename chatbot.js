@@ -1,8 +1,7 @@
 /* ================================================================
    Travel Pulse — AI Chatbot  (chatbot.js)
-   Calls OpenAI API directly from the browser — NO backend needed.
-   Your OpenAI API key is entered once in the chat panel and saved
-   to sessionStorage (cleared when the browser tab closes).
+   Uses secure local FastAPI /api/chat backend. Configure key in .env.
+   OpenAI API key is kept on the Python server, never in the browser.
 
    Files required:
      chatbot.css   — isolated styles (no conflict with styles.css)
@@ -134,7 +133,7 @@
       id: 'tp-chat-key-save', type: 'button', text: 'Save'
     });
     var keyBanner = el('div', { id: 'tp-chat-key-banner' }, [keyInput, keySave]);
-    if (getKey()) keyBanner.style.display = 'none';
+    keyBanner.style.display = 'none';
 
     /* Messages */
     var msgs = el('div', {
@@ -265,51 +264,11 @@
 
   /* ── OpenAI API call (direct, no backend) ────────────────────── */
   function callOpenAI(userMessage, apiKey, onDone, onError) {
-    /* Build messages array with system prompt + trimmed history */
-    var messages = [{ role: 'system', content: SYSTEM_PROMPT }];
-    history.slice(-MAX_HISTORY).forEach(function(m){ messages.push(m); });
-    messages.push({ role: 'user', content: userMessage });
-
-    fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + apiKey
-      },
-      body: JSON.stringify({
-        model:       MODEL,
-        max_tokens:  MAX_TOKENS,
-        temperature: 0.4,
-        messages:    messages
-      })
-    })
-    .then(function(resp) {
-      if (!resp.ok) {
-        return resp.json().then(function(e) {
-          var msg = (e.error && e.error.message) || ('OpenAI error ' + resp.status);
-          /* Friendly messages for common errors */
-          if (resp.status === 401) msg = 'Invalid API key. Please check and re-enter it.';
-          if (resp.status === 429) msg = 'Rate limit reached. Please wait a moment and try again.';
-          if (resp.status === 403) msg = 'API key does not have permission. Check your OpenAI account.';
-          throw new Error(msg);
-        }).catch(function(e2) {
-          if (e2.message) throw e2;
-          throw new Error('OpenAI error ' + resp.status);
-        });
-      }
-      return resp.json();
-    })
-    .then(function(data) {
-      var reply = data.choices &&
-                  data.choices[0] &&
-                  data.choices[0].message &&
-                  data.choices[0].message.content;
-      if (!reply) throw new Error('Empty response from OpenAI.');
-      onDone(reply.trim());
-    })
-    .catch(function(err) {
-      onError(err.message || 'Could not reach OpenAI. Check your connection.');
-    });
+    fetch('/api/chat', {method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({message:userMessage,history:history.slice(-MAX_HISTORY)})})
+      .then(function(r){return r.json().then(function(d){if(!r.ok) throw Error(d.detail||'Server error');return d;});})
+      .then(function(d){onDone(d.answer||'No answer available');})
+      .catch(function(e){onError(e.message||String(e));});
   }
 
   /* ── Send message ────────────────────────────────────────────── */
@@ -318,13 +277,7 @@
     if (!text || isLoading) return;
 
     /* Check API key */
-    var apiKey = getKey();
-    if (!apiKey) {
-      ui.keyBanner.style.display = 'flex';
-      ui.keyInput.focus();
-      addError('Please enter your OpenAI API key in the yellow bar above.', ui);
-      return;
-    }
+    var apiKey = '';
 
     isLoading = true;
     ui.sendBtn.disabled = true;
@@ -367,7 +320,7 @@
     ui.fab.setAttribute('aria-label', 'Close Travel Pulse Assistant');
     if (ui.badge) ui.badge.style.display = 'none';
     setTimeout(function(){
-      (getKey() ? ui.input : ui.keyInput).focus();
+      ui.input.focus();
     }, 220);
   }
 

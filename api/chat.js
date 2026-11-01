@@ -23,7 +23,7 @@ require('dotenv').config();
 /* ── config ─────────────────────────────────────────────────────── */
 var PORT           = process.env.PORT           || 3001;
 var OPENAI_KEY     = process.env.OPENAI_API_KEY || '';
-var AGENT_ID       = process.env.AGENT_ID       || 'agt_6ab6506dfc708191a5750dde65dfaba9';
+var AGENT_ID       = process.env.AGENT_ID       || 'agt_6abac44a3a2c8191877f424a4b0c74e4';
 var ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '*';
 
 /* Travel Pulse data context injected as system prompt */

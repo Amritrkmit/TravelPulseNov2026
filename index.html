@@ -11,9 +11,13 @@
   <title>Travel Pulse | 2nd Wave Dashboard</title>
 
   
-  <link rel="stylesheet" href="styles.css?v=20261012_v26" />
+  <link rel="stylesheet" href="styles.css?v=20261027_segments-journey" />
 
   <link rel="stylesheet" href="chatbot.css?v=20261001_v1" />
+  <link rel="stylesheet" href="insight-slider.css?v=20261031_v1" />
+  <link rel="stylesheet" href="market-select.css?v=20261031_v4" />
+  <link rel="stylesheet" href="page-guide.css?v=20261031_v2" />
+  <link rel="stylesheet" href="readme.css?v=20261031_v2" />
 
 <script>
 
@@ -68,6 +72,8 @@
     <button class="tab" data-tab="hotel">Hotels Overview</button>
 
     <button class="tab" data-tab="segments">Segments Analysis</button>
+
+    <button class="tab" data-tab="readme">Read Me</button>
 
     
 
@@ -797,15 +803,15 @@
 
         <article class="card hotel-slide-card">
 
-          <div class="card-head" style="color:#fff;border-radius:6px 6px 0 0;padding:10px 14px;margin:-1px -1px 0;">
+          <div class="card-head" style="color:#fff;border-radius:6px 6px 0 0;padding:8px 16px;">
 
-            <div><h2 style="color:#fff;font-size:13px;margin:0;">Strategies That Would Drive Hotel Booking</h2></div>
+            <div><h2 style="color:#fff;font-size:15px;margin:0;">Strategies That Would Drive Hotel Booking</h2></div>
 
-            <span class="q9b-tab-badge" style="background:#288f5d;color:#fff;">Q23</span>
+            <span class="q9b-tab-badge" style="background:#3db87e;color:#fff;">Q23</span>
 
           </div>
 
-          <div id="hotelStrategyChart" class="chart" style="min-height:300px"></div>
+          <div id="hotelStrategyChart" class="chart" style="min-height:340px"></div>
 
           
 
@@ -958,15 +964,21 @@
       <section id="segmentAgeView" class="segments-view-panel" role="tabpanel" aria-labelledby="segmentAgeTab">
         <div id="segmentAgeCohorts" class="segment-cohort-sticky"></div>
         <div id="segmentAgeQuestions" class="segment-question-stack"></div>
-        <header class="segment-spend-section-heading"><h3>Expected spending change</h3></header>
-        <div id="segmentAgeSpend" class="segment-outcome-grid"></div>
+        <section class="segment-spend-section" data-journey-stage="Plan" aria-labelledby="segmentAgeSpendHeading">
+          <aside class="segment-journey-rail" aria-label="Plan section"><span>Plan</span></aside>
+          <header class="segment-spend-section-heading"><h3 id="segmentAgeSpendHeading">Expected spending change</h3></header>
+          <div id="segmentAgeSpend" class="segment-outcome-grid"></div>
+        </section>
       </section>
 
       <section id="segmentBudgetView" class="segments-view-panel" role="tabpanel" aria-labelledby="segmentBudgetTab" hidden>
         <div id="segmentBudgetCohorts" class="segment-cohort-sticky"></div>
         <div id="segmentBudgetQuestions" class="segment-question-stack"></div>
-        <header class="segment-spend-section-heading"><h3>Expected spending change</h3></header>
-        <div id="segmentBudgetSpend" class="segment-outcome-grid"></div>
+        <section class="segment-spend-section" data-journey-stage="Plan" aria-labelledby="segmentBudgetSpendHeading">
+          <aside class="segment-journey-rail" aria-label="Plan section"><span>Plan</span></aside>
+          <header class="segment-spend-section-heading"><h3 id="segmentBudgetSpendHeading">Expected spending change</h3></header>
+          <div id="segmentBudgetSpend" class="segment-outcome-grid"></div>
+        </section>
       </section>
 
     </section>
@@ -1099,6 +1111,11 @@
 
 
 
+    <!-- READ ME -->
+    <section class="tab-panel" data-panel="readme" hidden>
+      <div id="readmeRoot"></div>
+    </section>
+
   </main>
 
 
@@ -1113,7 +1130,13 @@
 
   <script defer src="display-labels.js?v=20261012_v6"></script>
 
-  <script defer src="app-final.js?v=20261020_v49"></script>
+  <script defer src="insight-slider.js?v=20261031_v1"></script>
+
+  <script defer src="page-guide.js?v=20261031_v2"></script>
+
+  <script defer src="readme.js?v=20261031_v2"></script>
+
+  <script defer src="app-final.js?v=20261101_maplegend2"></script>
 
   <script defer src="chart-premium.js?v=20261020_v29"></script>
 

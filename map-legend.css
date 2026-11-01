@@ -1,0 +1,21 @@
+/* Travel Pulse — shared map legend: one look, one place, on every map */
+.sentiment-scale-legend, .dest-sentiment-legend{ display:none!important }   /* replaced by the shared legend */
+
+.overview-map-left{ position:relative }
+.tp-maplegend{
+  position:absolute; left:50%; bottom:12px; transform:translateX(-50%);
+  z-index:12;
+  display:flex; align-items:center; flex-wrap:wrap; justify-content:center; gap:6px 12px;
+  max-width:calc(100% - 24px);
+  background:rgba(255,255,255,.96); border:1px solid #d9d1ec; border-radius:999px;
+  padding:6px 16px;
+  box-shadow:0 3px 12px rgba(30,21,48,.16);
+  font:600 12px/1.2 'DM Sans',system-ui,sans-serif; color:#3a1a73;
+  pointer-events:auto;
+}
+.tp-lg-t{ font-weight:800; color:#1f1147 }
+.tp-lg-bar{ display:inline-block; width:130px; height:10px; border-radius:3px; border:1px solid rgba(0,0,0,.12) }
+.tp-lg-neg{ color:#d9003a } .tp-lg-neu{ color:#8a6a00 } .tp-lg-pos{ color:#007a00 }
+.tp-lg-it, .tp-lg-nd{ display:inline-flex; align-items:center; gap:5px; white-space:nowrap }
+.tp-lg-nd{ padding-left:12px; border-left:1px solid #d9d1ec; color:#5b5272 }
+.tp-lg-sw{ display:inline-block; width:22px; height:11px; border:1px solid rgba(0,0,0,.3) }

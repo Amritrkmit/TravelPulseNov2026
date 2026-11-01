@@ -49,6 +49,7 @@ let _dWorldData  = null;
 let _dChunkCache = {};
 
 let _dSelCountry = null;
+window._dGetSelCountry = function(){ return _dSelCountry; };   /* read by the shared "Clear selection" chip in app-final.js */
 
 let _dViewData = null;
 
@@ -602,7 +603,7 @@ function _dDrawMap() {
 
     .attr('fill',f=>sourceFill(_dGeoOf(f),'#d8d4e0'))
     .attr('opacity',f=>sourceOpacity(_dGeoOf(f)))
-    .attr('stroke',f=>sourceGeoSet.has(_dGeoOf(f))?SOURCE_SELECTED_STROKE:'#fff')
+    .attr('stroke',f=>sourceGeoSet.has(_dGeoOf(f))?SOURCE_SELECTED_STROKE:'#000')
     .attr('stroke-width',f=>sourceGeoSet.has(_dGeoOf(f))?4:0.3)
     .style('filter',f=>sourceFilter(_dGeoOf(f)))
 
@@ -630,7 +631,7 @@ function _dDrawMap() {
 
     .attr('opacity',f=>sourceOpacity(_dGeoOf(f)))
 
-    .attr('stroke',f=>sourceGeoSet.has(_dGeoOf(f))?SOURCE_SELECTED_STROKE:'#fff')
+    .attr('stroke',f=>sourceGeoSet.has(_dGeoOf(f))?SOURCE_SELECTED_STROKE:'#000')
     .attr('stroke-width',f=>sourceGeoSet.has(_dGeoOf(f))?4:0.5)
 
     .style('filter',f=>sourceFilter(_dGeoOf(f)))
@@ -649,7 +650,7 @@ function _dDrawMap() {
     .attr('data-dgeoname',f=>_dGeoOf(f))
     .attr('fill',f=>{const n=_dGeoOf(f);return sourceFill(n, byGeo[n] ? _dScoreToColour(byGeo[n].score) : '#c8c8c8');})
     .attr('opacity',f=>sourceOpacity(_dGeoOf(f)))
-    .attr('stroke','#fff').attr('stroke-width',1.3)
+    .attr('stroke','#000').attr('stroke-width',1.3)
     .style('cursor','pointer');
 
   /* Pass 3 — border strokes */
@@ -788,6 +789,7 @@ function _dRenderLegend() {
 function _dSelectCountry(geoName) {
 
   _dSelCountry = geoName;
+  setTimeout(function(){ if (typeof syncMapClearChips === "function") syncMapClearChips(); }, 0);
 
 
 

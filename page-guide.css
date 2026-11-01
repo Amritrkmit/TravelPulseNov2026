@@ -1,0 +1,81 @@
+/* Travel Pulse — page guide styles (tab descriptions + "About this page" banner) */
+
+/* ── tab description tooltip ───────────────────────────────── */
+.tp-tabtip{
+  position:fixed; z-index:1000;
+  width:min(380px, calc(100vw - 16px));
+  background:#1e1530; color:#fff;
+  border-radius:8px; padding:12px 14px;
+  font:500 13px/1.45 'DM Sans',system-ui,sans-serif;
+  box-shadow:0 8px 24px rgba(30,21,48,.35);
+  pointer-events:none;
+}
+.tp-tabtip[hidden]{ display:none }
+.tp-tabtip b{ display:block; color:var(--yellow,#f5ff1a); font:800 13px 'Manrope','DM Sans',sans-serif; margin-bottom:3px }
+.tp-tabtip::before{
+  content:''; position:absolute; top:-7px; left:var(--arrow-x,24px);
+  border:7px solid transparent; border-top:none; border-bottom-color:#1e1530;
+}
+
+/* ── "About this page" banner ──────────────────────────────── */
+.tab-panel[data-panel="behaviour"] > .tp-guide{ grid-column:1 / -1 }
+.tp-guide{
+  margin:0 0 12px;
+  font-family:'DM Sans',system-ui,sans-serif;
+  color:#1f1147;
+}
+.tp-guide-full{
+  display:flex; gap:16px; align-items:flex-start;
+  background:#fff; border:1px solid #e1daf0; border-left:6px solid var(--purple,#530095);
+  border-radius:8px; padding:16px 20px;
+  box-shadow:0 4px 14px rgba(83,0,149,.10);
+}
+.tp-guide-ico{
+  flex:0 0 auto; width:34px; height:34px; border-radius:50%;
+  background:var(--purple,#530095); color:#fff;
+  font:800 18px/34px 'Manrope','DM Sans',sans-serif; text-align:center;
+}
+.tp-guide-ico-sm{ width:24px; height:24px; font-size:13px; line-height:24px }
+.tp-guide-body{ flex:1 1 auto; min-width:0 }
+.tp-guide h3{ margin:0 0 4px; font:800 16px 'Manrope','DM Sans',sans-serif; color:var(--purple,#530095) }
+.tp-guide p{ margin:0 0 8px; font-size:14px; line-height:1.5; max-width:1000px }
+.tp-guide p b{ color:#1f1147 }
+.tp-guide-src{ font-size:12.5px!important; color:#5b5272 }
+.tp-guide-qt{ font:800 11px 'DM Sans',sans-serif; letter-spacing:.06em; color:#5b5272; margin:10px 0 6px }
+.tp-guide-q{ list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:8px }
+.tp-guide-q li{
+  background:#f1edf9; border:1px solid #d9d1ec; border-radius:999px;
+  padding:5px 12px; font-size:12.5px; font-weight:600; color:#3a1a73;
+}
+.tp-guide-btn{
+  flex:0 0 auto; margin-left:auto;
+  background:#fff; border:1px solid var(--purple,#530095); color:var(--purple,#530095);
+  border-radius:6px; min-height:34px; padding:0 14px;
+  font:700 12px 'DM Sans',system-ui,sans-serif; cursor:pointer;
+}
+.tp-guide-btn:hover{ background:#f1edf9 }
+.tp-guide-btn:focus-visible{ outline:3px solid #f26a0b; outline-offset:2px }
+
+/* collapsed: a slim bar that is always there to bring the guide back */
+.tp-guide-slim{
+  display:none; align-items:center; gap:10px;
+  background:#fff; border:1px solid #e1daf0; border-left:6px solid var(--purple,#530095);
+  border-radius:8px; padding:6px 12px;
+}
+.tp-guide-slim-text{ font-size:13px; font-weight:700; color:var(--purple,#530095) }
+.tp-guide.is-collapsed .tp-guide-full{ display:none }
+.tp-guide.is-collapsed .tp-guide-slim{ display:flex }
+
+@media (max-width:700px){
+  .tp-guide-full{ flex-wrap:wrap }
+  .tp-guide-btn.tp-guide-hide{ margin-left:0 }
+}
+
+/* ── journey stage descriptions (Inspire / Plan / Book / During trip) ── */
+.journey-step-sub{
+  display:block; margin-top:2px;
+  color:#fff!important;
+  font:600 12px/1.3 'DM Sans',system-ui,sans-serif;
+  text-shadow:0 1px 2px rgba(0,0,0,.3);
+  white-space:normal;
+}

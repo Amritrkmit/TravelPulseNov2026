@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Travel Pulse | Segment Analysis</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="segment-analysis.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <script defer src="display-labels.js"></script>
+  <script defer src="segment-analysis.js"></script>
+</head>
+<body class="sa-page">
+  <header class="topbar sa-topbar">
+    <a class="brand sa-brand" href="index.html" aria-label="Travel Pulse dashboard">
+      <img class="brand-logo" src="escalent-logo.svg" alt="Escalent logo">
+      <span class="brand-product">Travel Intelligence Dashboard</span>
+    </a>
+    <div class="sa-header-title">Segment Analysis</div>
+    <button class="logout-btn" id="saLogout" type="button" title="Log out">Log out</button>
+  </header>
+
+  <main class="sa-main">
+    <header class="sa-page-head">
+      <div>
+        <span class="sa-kicker">TRAVELER SEGMENTS</span>
+        <h1>Explore respondent profiles</h1>
+        <p id="sa-base-count" aria-live="polite">Loading respondent data...</p>
+      </div>
+      <div class="sa-filter-actions">
+        <div class="sa-filter-control">
+          <span class="sa-filter-label">REGION / COUNTRY</span>
+          <details class="sa-market-menu" id="sa-market-menu">
+            <summary id="sa-market-summary">All regions &amp; countries</summary>
+            <div class="sa-market-popover" id="sa-market-options"></div>
+          </details>
+        </div>
+        <button class="sa-reset" id="sa-reset" type="button" title="Reset region and country filters">Reset</button>
+      </div>
+    </header>
+
+    <div class="sa-viewbar">
+      <div class="sa-view-tabs" role="tablist" aria-label="Segment dimension">
+        <button type="button" class="sa-view-button is-active" id="sa-age-tab" role="tab" aria-selected="true" aria-controls="sa-chart-content" data-view="age">Segment by Age</button>
+        <button type="button" class="sa-view-button" id="sa-budget-tab" role="tab" aria-selected="false" aria-controls="sa-chart-content" data-view="budget">Segment by Budget</button>
+      </div>
+      <span class="sa-view-count" id="sa-filter-count"></span>
+    </div>
+
+    <div id="sa-status" class="sa-status" role="status" aria-live="polite">Loading respondent records...</div>
+    <div id="sa-chart-content" class="sa-chart-content" role="tabpanel" aria-labelledby="sa-age-tab"></div>
+  </main>
+
+  <div class="sa-tooltip" id="sa-tooltip" role="status" aria-hidden="true"></div>
+  <footer class="sa-footer">
+    <img src="escalent-logo.svg" alt="">
+    <span>Escalent Travel Pulse 2026</span>
+    <span id="sa-footer-count"></span>
+  </footer>
+</body>
+</html>

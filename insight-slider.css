@@ -1,0 +1,92 @@
+/* Travel Pulse — Insight Slider styles (extends the existing .insight-banner) */
+
+.insight-banner.insight-slider{
+  align-items:center;
+  flex-wrap:wrap;
+  gap:8px 10px;
+  padding-top:6px;
+  padding-bottom:6px;
+  margin-bottom:0;              /* progress bar sits directly under the banner */
+}
+.insight-banner.insight-slider .insight-tag{ margin-top:0 }
+
+.insight-slide-text{
+  flex:1 1 320px;
+  min-width:0;
+  min-height:3em;               /* ~2 lines: keeps the layout steady between slides */
+  display:flex;
+  align-items:center;
+  padding:3px 0;
+}
+.insight-banner.insight-slider .insight-slide-text b,
+.insight-banner.insight-slider .insight-slide-text strong{ color:var(--yellow); font-weight:800 }
+
+.insight-slide-inner{ display:block; min-width:0 }
+
+.insight-fade{ animation:tpInsightFade .28s ease both }
+@keyframes tpInsightFade{ from{opacity:0;transform:translateY(3px)} to{opacity:1;transform:none} }
+@media (prefers-reduced-motion:reduce){ .insight-fade{ animation:none } }
+
+/* prev / counter / next */
+.insight-nav{
+  margin-left:auto;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  flex:0 0 auto;
+}
+.insight-nav[hidden], .insight-progress[hidden]{ display:none }
+.insight-count{
+  color:#fff;
+  font-size:10px;
+  font-weight:700;
+  margin-right:2px;
+  white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+.insight-nav-btn{
+  width:30px;
+  height:30px;
+  border-radius:50%;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:0;
+  cursor:pointer;
+  transition:transform .12s ease, background .12s ease;
+}
+.insight-prev{ background:transparent; color:#fff; border:1px solid #fff }
+.insight-next{ background:var(--yellow); color:var(--purple); border:1px solid var(--yellow) }
+.insight-nav-btn:hover{ transform:scale(1.08) }
+.insight-prev:hover{ background:rgba(255,255,255,.14) }
+.insight-nav-btn:focus-visible,
+.insight-seg:focus-visible{ outline:3px solid var(--yellow); outline-offset:2px }
+
+/* progress segments */
+.insight-progress{
+  display:flex;
+  gap:6px;
+  margin:-1px 0 10px;
+  padding:0 1px;
+}
+.insight-seg{
+  flex:1 1 0;
+  height:14px;                  /* generous click area … */
+  padding:0;
+  border:0;
+  background:transparent;
+  cursor:pointer;
+  position:relative;
+}
+.insight-seg::before{           /* … thin visible bar */
+  content:"";
+  position:absolute;
+  left:0; right:0; top:5px;
+  height:4px;
+  border-radius:2px;
+  background:#d9d1ec;
+  transition:background .2s ease;
+}
+.insight-seg.is-seen::before{ background:var(--purple) }
+.insight-seg.is-active::before{ background:#f26a0b }
+.insight-seg:hover::before{ filter:brightness(.92) }

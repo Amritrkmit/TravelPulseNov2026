@@ -729,7 +729,7 @@ const _hb=window.horizontalBars;
 window.horizontalBars=function(sel,data,opt){ if(sel==="#inspireDestChart") data=destRows(data); return _hb(sel,data,opt); };
 
 /* ---------- Segments tab: a different visual per question ---------- */
-const SEG_TYPES={Q12:"bars",Q7:"bars",Q21:"bars",Q9:"lollipop",Q16:"lollipop",Q22:"lollipop",QS5:"ribbon",Q8b:"parliament",Q14:"bars",Q5:"rose",Q8:"ribbon",Q3:"rose"};
+const SEG_TYPES={Q12:"bars",Q7:"bars",Q21:"bars",Q9:"percentageBars",Q16:"areaLine",Q22:"percentageBars",QS5:"ribbon",Q8b:"parliament",Q14:"bars",Q5:"rose",Q8:"ribbon",Q3:"rose"};
 const SEG_SOFT=SEG_COL.map(c=>d3.color(d3.interpolateRgb(c,"#ffffff")(.34)).formatHex());
 const PARLIAMENT_COLORS=["#FF8C00","#FFD34D","#5287F5","#A8CCF9","#A5A5AD"];
 const LIGHT_PURPLE=SEG_SOFT[0];
@@ -810,6 +810,85 @@ const SEGVIZ={
     rg.each(function(d){const t=d3.select(this).append("text").attr("class","pp-lab").attr("text-anchor","end").attr("x",-9),r=wrap2(d.label,cpl),n=r.lines.length;
       r.lines.forEach((ln,k)=>t.append("tspan").attr("x",-9).attr("dy",k===0?(n===1?"0.35em":"-0.2em"):"1.12em").text(ln));t.append("title").text(d.label);});
     rg.on("mousemove",tipOf).on("mouseleave",()=>window.hideTip());
+  },
+  percentageBars(el,rows,w){
+    const m={top:18,right:28,bottom:40,left:Math.min(190,Math.max(112,Math.floor(w*.38)))}, rowH=42, h=rows.length*rowH+m.top+m.bottom, iw=Math.max(70,w-m.left-m.right), ih=rows.length*rowH;
+    const svg=d3.select(el).append("svg").attr("class","pp-bars seg-percentage-bars")
+      .attr("width",w).attr("height",h).attr("viewBox",`0 0 ${w} ${h}`).attr("role","img")
+      .attr("aria-label","Destination decision considerations by percentage");
+    const uid=uidOf("#"+el.id), defs=svg.append("defs");
+    const maxValue=d3.max(rows,d=>d.value)||1;
+    const x=d3.scaleLinear().domain([0,maxValue*1.18]).nice(4).range([0,iw]);
+    const y=d3.scaleBand().domain(rows.map(d=>d.label)).range([0,ih]).padding(.24);
+    const color=d3.scaleSequential().domain(d3.extent(rows,d=>d.value)).interpolator(d3.interpolateRgb("#00B5AC","#530095"));
+    rows.forEach((row,index)=>{
+      const shade=color(row.value), gradient=defs.append("linearGradient").attr("id",`${uid}-bar-${index}`).attr("x1","0%").attr("y1","0%").attr("x2","100%").attr("y2","0%");
+      gradient.append("stop").attr("offset","0%").attr("stop-color",d3.color(shade).brighter(.45).formatHex());
+      gradient.append("stop").attr("offset","100%").attr("stop-color",shade);
+    });
+    const g=svg.append("g").attr("transform",`translate(${m.left},${m.top})`);
+    g.selectAll("rect.seg-percent-row-bg").data(rows).join("rect").attr("class","seg-percent-row-bg")
+      .attr("x",0).attr("y",d=>y(d.label)).attr("width",iw).attr("height",y.bandwidth())
+      .attr("fill",(d,index)=>index%2?"#f4f4f4":"#fafafa");
+    g.append("g").attr("class","seg-percent-axis").attr("transform",`translate(0,${ih})`)
+      .call(d3.axisBottom(x).ticks(4).tickSize(-ih).tickFormat(d3.format(".0%")))
+      .call(axis=>axis.select(".domain").remove());
+    g.append("g").attr("class","seg-percent-labels").call(d3.axisLeft(y).tickSize(0))
+      .call(axis=>axis.select(".domain").remove())
+      .call(axis=>axis.selectAll(".tick text").each(function(label){
+        const text=d3.select(this), lines=wrap2(label,Math.max(12,Math.floor((m.left-20)/6))).lines.slice(0,2);
+        text.text(null).attr("dy",lines.length>1?"-.22em":".32em");
+        lines.forEach((line,index)=>text.append("tspan").attr("x",-8).attr("dy",index===0?"0em":"1.05em").text(line));
+        text.append("title").text(label);
+      }));
+    const bars=g.selectAll("g.seg-percent-bar").data(rows).join("g").attr("class","seg-percent-bar")
+      .attr("transform",d=>`translate(0,${y(d.label)})`);
+    bars.append("rect").attr("class","seg-percent-fill").attr("x",0).attr("y",0).attr("width",d=>x(d.value)).attr("height",y.bandwidth())
+      .attr("rx",2).attr("fill",(d,index)=>`url(#${uid}-bar-${index})`);
+    bars.append("circle").attr("class","seg-percent-badge").attr("cx",d=>x(d.value)).attr("cy",y.bandwidth()/2).attr("r",14)
+      .attr("fill","#fff").attr("stroke",d=>color(d.value)).attr("stroke-width",2.5);
+    bars.append("text").attr("class","seg-percent-value").attr("x",d=>x(d.value)).attr("y",y.bandwidth()/2).attr("dy",".35em")
+      .attr("text-anchor","middle").text(d=>pctTxt(d.value));
+    bars.on("mousemove",tipOf).on("mouseleave",()=>window.hideTip());
+  },
+  areaLine(el,rows,w){
+    const m={top:24,right:18,bottom:42,left:Math.min(175,Math.max(112,Math.floor(w*.32)))}, h=Math.max(330,rows.length*32+m.top+m.bottom), iw=Math.max(80,w-m.left-m.right), ih=h-m.top-m.bottom;
+    const svg=d3.select(el).append("svg").attr("class","pp-bars seg-area-line-svg")
+      .attr("width",w).attr("height",h).attr("viewBox",`0 0 ${w} ${h}`).attr("role","img")
+      .attr("aria-label","Airline considerations by share, with percentages on the horizontal axis and considerations on the vertical axis");
+    const uid=uidOf("#"+el.id), defs=svg.append("defs");
+    const areaFill=defs.append("linearGradient").attr("id",uid+"-area").attr("x1",0).attr("y1",0).attr("x2",1).attr("y2",0);
+    areaFill.append("stop").attr("offset","0%").attr("stop-color","#530095").attr("stop-opacity",.42);
+    areaFill.append("stop").attr("offset","100%").attr("stop-color","#C8A9E3").attr("stop-opacity",.05);
+    const x=d3.scaleLinear().domain([0,(d3.max(rows,d=>d.value)||.1)*1.2]).nice(4).range([0,iw]);
+    const y=d3.scalePoint().domain(rows.map(d=>d.label)).range([0,ih]).padding(.5);
+    const g=svg.append("g").attr("transform",`translate(${m.left},${m.top})`);
+    g.append("g").attr("class","gridline seg-area-x-axis").attr("transform",`translate(0,${ih})`)
+      .call(d3.axisBottom(x).ticks(4).tickSize(-ih).tickFormat(d3.format(".0%")))
+      .call(axis=>axis.select(".domain").remove());
+    const labelChars=Math.max(12,Math.floor((m.left-20)/5.5));
+    g.append("g").attr("class","seg-area-y-axis").call(d3.axisLeft(y).tickSize(0))
+      .call(axis=>axis.select(".domain").remove())
+      .call(axis=>axis.selectAll(".tick text").each(function(label){
+        const text=d3.select(this), lines=wrap2(label,labelChars).lines.slice(0,2);
+        text.text(null).attr("dy",lines.length>1?"-.25em":".32em");
+        lines.forEach((line,index)=>text.append("tspan").attr("x",-8).attr("dy",index===0?"0em":"1.05em").text(line));
+        text.append("title").text(label);
+      }));
+    g.append("path").datum(rows).attr("class","seg-area-fill")
+      .attr("d",d3.area().y(d=>y(d.label)).x0(0).x1(d=>x(d.value)).curve(d3.curveMonotoneY)).attr("fill",`url(#${uid}-area)`);
+    g.selectAll("line.seg-area-drop").data(rows).join("line").attr("class","seg-area-drop")
+      .attr("x1",0).attr("x2",d=>x(d.value)).attr("y1",d=>y(d.label)).attr("y2",d=>y(d.label));
+    g.append("path").datum(rows).attr("class","seg-area-line")
+      .attr("d",d3.line().x(d=>x(d.value)).y(d=>y(d.label)).curve(d3.curveMonotoneY));
+    const points=g.selectAll("g.seg-area-point").data(rows).join("g").attr("class","seg-area-point")
+      .attr("transform",d=>`translate(${x(d.value)},${y(d.label)})`).attr("tabindex",0).attr("role","img")
+      .attr("aria-label",d=>`${d.label}: ${pctTxt(d.value)}`);
+    points.append("circle").attr("r",5).attr("class","seg-area-dot");
+    points.append("text").attr("class","seg-area-value").attr("x",d=>d.value>x.domain()[1]*.82?-8:8)
+      .attr("y",-7).attr("text-anchor",d=>d.value>x.domain()[1]*.82?"end":"start").text(d=>pctTxt(d.value));
+    points.append("title").text(d=>`${d.label}: ${pctTxt(d.value)} (${nfmt(d.count)} respondents)`);
+    points.on("mousemove",tipOf).on("mouseleave",()=>window.hideTip());
   },
   bubble(el,rows,w){
     const h=190, root=d3.hierarchy({children:rows}).sum(d=>d.value||0);

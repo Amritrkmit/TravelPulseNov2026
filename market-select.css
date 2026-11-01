@@ -1,0 +1,73 @@
+/* Travel Pulse — market selection controls (clear selection + market snapshot panel) */
+
+/* the callout used to be click-through (pointer-events:none) — it now holds real buttons */
+.map-callout{ pointer-events:auto }
+.map-callout-actions{ display:flex; flex-direction:column; gap:6px; margin-top:8px }
+.map-callout-btn{
+  font:700 11px/1 'DM Sans',system-ui,sans-serif;
+  min-height:30px; padding:0 10px; border-radius:4px; cursor:pointer; text-align:left;
+  background:transparent; color:#fff; border:1px solid rgba(255,255,255,.6);
+}
+.map-callout-btn.primary{ background:var(--yellow); color:var(--purple); border-color:var(--yellow) }
+.map-callout-btn:hover{ filter:brightness(1.12) }
+.map-callout-btn:focus-visible,
+.msnap-close:focus-visible{ outline:2px solid var(--yellow); outline-offset:2px }
+
+/* the Market Snapshot panel is hidden by default; it slides over the map when opened */
+.overview-map-wrapper{ position:relative }
+.overview-map-wrapper--wide.snapshot-open > .overview-map-right{
+  display:flex !important;
+  position:absolute; top:0; right:0; bottom:0;
+  width:min(360px,92%);
+  z-index:30;
+  overflow-y:auto;
+  border-left:1px solid var(--line);
+  box-shadow:-10px 0 28px rgba(30,21,48,.28);
+  animation:tpSnapIn .22s ease both;
+}
+@keyframes tpSnapIn{ from{transform:translateX(24px);opacity:0} to{transform:none;opacity:1} }
+@media (prefers-reduced-motion:reduce){ .overview-map-wrapper--wide.snapshot-open > .overview-map-right{ animation:none } }
+.msnap-header .msnap-close{
+  background:transparent; color:#fff; border:1px solid rgba(255,255,255,.75);
+  width:28px; height:28px; border-radius:50%; margin-left:8px; padding:0;
+  font-size:12px; line-height:1; cursor:pointer; flex-shrink:0;
+}
+.msnap-header .msnap-close:hover{ background:rgba(255,255,255,.16) }
+
+/* "Selected: X  ✕ Clear selection" chip — top-right corner of every map */
+.overview-map-left{ position:relative }
+.map-chip-stack{
+  position:absolute; top:10px; right:10px; z-index:12;
+  display:flex; flex-direction:column; align-items:flex-end; gap:8px;
+  max-width:calc(100% - 20px);
+}
+.map-chip-stack > [data-chip="market"]{ order:1 }
+.map-chip-stack > [data-chip="dest"]{ order:2 }
+.map-chip-stack > [data-chip="snap"]{ order:3 }
+.map-clear-chip{
+  display:flex; align-items:center; gap:10px;
+  max-width:100%;
+  background:#1e1530; color:#fff;
+  border-radius:999px; padding:5px 6px 5px 14px;
+  font:700 12px/1.2 'DM Sans',system-ui,sans-serif;
+  box-shadow:0 4px 14px rgba(30,21,48,.3);
+}
+.map-clear-text{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0 }
+.map-clear-btn{
+  flex:0 0 auto;
+  min-height:30px; padding:0 14px; border:0; border-radius:999px;
+  background:var(--yellow); color:var(--purple);
+  font:800 12px/1 'DM Sans',system-ui,sans-serif; cursor:pointer;
+}
+.map-clear-btn:hover{ filter:brightness(1.1) }
+.map-clear-btn:focus-visible{ outline:2px solid #fff; outline-offset:2px }
+
+/* "View market snapshot ›" — own line under the chip */
+.map-snap-btn{
+  min-height:36px; padding:0 18px; border-radius:999px;
+  border:2px solid #1e1530; background:var(--yellow,#f5ff1a); color:var(--purple,#530095);
+  font:800 12px/1 'DM Sans',system-ui,sans-serif; cursor:pointer;
+  box-shadow:0 4px 14px rgba(30,21,48,.3);
+}
+.map-snap-btn:hover{ filter:brightness(1.06) }
+.map-snap-btn:focus-visible{ outline:3px solid #1e1530; outline-offset:2px }

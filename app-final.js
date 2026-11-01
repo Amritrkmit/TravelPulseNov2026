@@ -250,10 +250,13 @@ const METRIC_CFG={
 
 /* ══ MAP HELPERS: fit-to-width + zoom to selected country / region ═════════ */
 const MAP_FIT_GEOM={type:"MultiPoint",coordinates:[[-180,0],[180,0],[0,80],[0,-57]]};
-/* Natural-Earth projection that fills the FULL width (no side gaps). Poles are cropped. */
+/* MAP PROJECTION: flat rectangular map (equirectangular). To go back to the curved look,
+   change d3.geoEquirectangular to d3.geoNaturalEarth1. Other flat option: d3.geoMercator. */
+const makeMapProjection=()=>d3.geoEquirectangular();
+/* Projection that fills the FULL width (no side gaps). Poles are cropped. */
 function mapFitWorld(w,padX){
   padX=padX==null?2:padX;
-  const projection=d3.geoNaturalEarth1().fitWidth(Math.max(100,w-padX*2),MAP_FIT_GEOM);
+  const projection=makeMapProjection().fitWidth(Math.max(100,w-padX*2),MAP_FIT_GEOM);
   const t=projection.translate(); projection.translate([t[0]+padX,t[1]]);
   const b=d3.geoPath(projection).bounds(MAP_FIT_GEOM);
   return {projection,height:Math.ceil(b[1][1])+2};
@@ -348,7 +351,7 @@ function ensureOptionalScriptsForTab(tabName) {
     jobs.push(loadScriptOnce("https://cdnjs.cloudflare.com/ajax/libs/d3-cloud/1.2.5/d3.layout.cloud.min.js")
       .then(() => loadScriptOnce("enhancement.js?v=20260928_v47")));
   } else if (tabName === "destination") {
-    jobs.push(loadScriptOnce("dest-sentiment-engine.js?v=20261007_v7"));
+    jobs.push(loadScriptOnce("dest-sentiment-engine.js?v=20261031_blackborder"));
   } else if (tabName === "social") {
     jobs.push(loadScriptOnce("enhancement.js?v=20260928_v47"));
   }
@@ -1047,7 +1050,7 @@ function renderHotelSentimentMap(data){
         const market=marketFromGeoFeature(f);
         return market ? marketOpacity(market) : (hasMarketSelection ? .7 : 1);
       })
-      .attr("stroke","#fff").attr("stroke-width",0.3)
+      .attr("stroke","#000").attr("stroke-width",0.3)
       .style("pointer-events","none");
 
     g.append("g").attr("class","market-layer").selectAll("path")
@@ -1058,7 +1061,7 @@ function renderHotelSentimentMap(data){
         return displayedMarketFill(market);
       })
       .attr("opacity",f=>marketOpacity(marketFromGeoFeature(f)))
-      .attr("stroke",f=>selectedSet.has(marketFromGeoFeature(f))?SELECTED_MARKET_STROKE:"#fff")
+      .attr("stroke",f=>selectedSet.has(marketFromGeoFeature(f))?SELECTED_MARKET_STROKE:"#000")
       .attr("stroke-width",f=>selectedSet.has(marketFromGeoFeature(f))?4.4:0.6)
       .style("cursor","pointer")
       .style("filter",f=>marketFilter(marketFromGeoFeature(f)))
@@ -1089,7 +1092,7 @@ function renderHotelSentimentMap(data){
     .call(s=>{
       s.append("circle").attr("r",5)
         .attr("fill",m=>displayedMarketFill(m))
-        .attr("stroke",m=>selectedSet.has(m)?SELECTED_MARKET_STROKE:"#fff").attr("stroke-width",m=>selectedSet.has(m)?2.4:1.2);
+        .attr("stroke",m=>selectedSet.has(m)?SELECTED_MARKET_STROKE:"#000").attr("stroke-width",m=>selectedSet.has(m)?2.4:1.2);
       s.append("text").attr("x",6).attr("y",3).attr("font-size",7).attr("fill","#444")
         .text(m=>m==="Singapore"?"SG":"BH");
     })
@@ -1343,7 +1346,7 @@ function renderAirlineSentimentMap(data){
         const market=marketFromGeoFeature(f);
         return market ? marketOpacity(market) : (hasMarketSelection ? .7 : 1);
       })
-      .attr("stroke","#fff").attr("stroke-width",0.3)
+      .attr("stroke","#000").attr("stroke-width",0.3)
       .style("pointer-events","none");
 
     g.append("g").attr("class","market-layer").selectAll("path")
@@ -1354,7 +1357,7 @@ function renderAirlineSentimentMap(data){
         return displayedMarketFill(market);
       })
       .attr("opacity",f=>marketOpacity(marketFromGeoFeature(f)))
-      .attr("stroke",f=>selectedSet.has(marketFromGeoFeature(f))?SELECTED_MARKET_STROKE:"#fff")
+      .attr("stroke",f=>selectedSet.has(marketFromGeoFeature(f))?SELECTED_MARKET_STROKE:"#000")
       .attr("stroke-width",f=>selectedSet.has(marketFromGeoFeature(f))?4.4:0.6)
       .style("cursor","pointer")
       .style("filter",f=>marketFilter(marketFromGeoFeature(f)))
@@ -1385,7 +1388,7 @@ function renderAirlineSentimentMap(data){
     .call(s=>{
       s.append("circle").attr("r",5)
         .attr("fill",m=>displayedMarketFill(m))
-        .attr("stroke",m=>selectedSet.has(m)?SELECTED_MARKET_STROKE:"#fff").attr("stroke-width",m=>selectedSet.has(m)?2.4:1.2);
+        .attr("stroke",m=>selectedSet.has(m)?SELECTED_MARKET_STROKE:"#000").attr("stroke-width",m=>selectedSet.has(m)?2.4:1.2);
       s.append("text").attr("x",6).attr("y",3).attr("font-size",7).attr("fill","#444")
         .text(m=>m==="Singapore"?"SG":"BH");
     })
@@ -1639,7 +1642,8 @@ function switchTab(name){
       .classed("airline-active",name==="airline")
       .classed("hotel-active",name==="hotel")
       .classed("destination-active",name==="destination")
-      .classed("segments-active",name==="segments");
+      .classed("segments-active",name==="segments")
+      .classed("readme-active",name==="readme");
     d3.selectAll(".tab").classed("active",function(){return d3.select(this).attr("data-tab")===(sentimentView?"travel-sentiment":name);});
     d3.selectAll(".tab-panel").each(function(){
       const el=d3.select(this); el.attr("hidden", el.attr("data-panel")===name?null:true);
@@ -1692,19 +1696,124 @@ function renderBehaviourInsight(){
     <span class="insight-bullet">${fmt(aiTrust)} of ${selectionLabel(activeSelections)} would trust an AI trip assistant.</span>
   `);
 }
+/* ---------- insight slider: slide builders (Airline + Hotel) ----------
+   Every slide is calculated from the SAME filtered data as the charts (q(key)).
+   A slide is skipped when its data is missing / zero — nothing is ever invented. */
+function insEsc(v){return String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+/* tidy long survey labels: drop "— e.g. …", "(e.g. …)" and a cut-off trailing "(9" */
+function insTidy(label){return String(label).replace(/\s+—.*$/,"").replace(/\s*\((?:e\.g\.|i\.e\.).*$/i,"").replace(/\s*\(\d*$/,"").trim();}
+function insB(label){return "<b>"+insEsc(insTidy(label))+"</b>";}
+function insWho(){const l=selectionLabel(activeSelections);return (!l||l==="All"||l==="Total")?"all respondents":insEsc(l);}
+/* rows with a real, positive value; "Other (please specify)" is not a finding */
+function insTop(key,n){
+  let rows=[]; try{rows=q(key);}catch(e){return [];}
+  rows=rows.filter(d=>Number.isFinite(d.value)&&d.value>0&&!/^others?\b/i.test(d.label));
+  return topN(rows,n);
+}
+/* "<b>A</b> (30%), <b>B</b> (28%) and <b>C</b> (20%)" */
+function insList(items){
+  const parts=items.map(d=>`${insB(d.label)} (${fmt(d.value)})`);
+  return parts.length<2?parts.join(""):parts.slice(0,-1).join(", ")+" and "+parts[parts.length-1];
+}
+/* promoters = scores 9–10, detractors = 0–6 (same rule behind the NPS score) */
+function insNps(key){
+  let rows=[]; try{rows=q(key);}catch(e){return null;}
+  let pro=0,det=0,found=false;
+  rows.forEach(d=>{
+    if(!/^\d+$/.test(d.label)||!Number.isFinite(d.value)) return;
+    found=true; const n=+d.label;
+    if(n>=9) pro+=d.value; else if(n<=6) det+=d.value;
+  });
+  return found?{pro,det}:null;
+}
+function insSlide(builder,out){try{const h=builder(); if(h) out.push(h);}catch(e){console.warn("insight slide skipped:",e);}}
+
+function airlineInsightSlides(){
+  const out=[], who=insWho();
+  /* 1 · the existing banner sentence (unchanged) */
+  insSlide(()=>{
+    const topCarrier=topN(q("airlineCarrier"),1)[0];
+    const nps=byLabel("airlineNPS","NPS Score");
+    const topFactor=topN(q("airlineConsiderations"),1)[0];
+    if(!topCarrier||!topFactor) return "";
+    const word=nps>=50?"strong":nps>=0?"moderate":"weak";
+    return `<b>${topCarrier.label}</b> leads carrier preference (${fmt(topCarrier.value)}) for ${selectionLabel(activeSelections)}. Airline NPS is ${word} at ${d3.format(".0f")(nps)}, and <b>${topFactor.label}</b> is the top factor when choosing an airline.`;
+  },out);
+  /* 2 · preferred cabin class */
+  insSlide(()=>{
+    const c=insTop("cabinClass",2); if(!c.length) return "";
+    return `${insB(c[0].label)} is the most preferred cabin class (${fmt(c[0].value)})`+(c[1]?`, followed by ${insB(c[1].label)} (${fmt(c[1].value)})`:"")+` for ${who}.`;
+  },out);
+  /* 3 · top decision factors */
+  insSlide(()=>{
+    const f=insTop("airlineConsiderations",3); if(!f.length) return "";
+    return `${insList(f)} ${f.length>1?"are the top factors":"is the top factor"} when choosing an airline for ${who}.`;
+  },out);
+  /* 4 · NPS breakdown */
+  insSlide(()=>{
+    const b=insNps("airlineNPS"), nps=byLabel("airlineNPS","NPS Score"); if(!b) return "";
+    return `Promoters (scores 9–10) make up <b>${fmt(b.pro)}</b> of ${who} versus ${fmt(b.det)} detractors (0–6), giving an airline NPS of <b>${d3.format(".0f")(nps)}</b>.`;
+  },out);
+  /* 5 · loyalty programme */
+  insSlide(()=>{
+    const t2=byLabel("airlineLoyaltyImportance","Top 2 Box"), f=insTop("airlineLoyaltyFeatures",1)[0];
+    if(!(t2>0)&&!f) return "";
+    return (t2>0?`<b>${fmt(t2)}</b> of ${who} say airline loyalty-program membership is important`:`Airline loyalty programs`)+(f?`${t2>0?"; ":": "}${insB(f.label)} is the most valued feature (${fmt(f.value)}).`:".");
+  },out);
+  /* 6 · booking strategy */
+  insSlide(()=>{
+    const s=insTop("airlineStrategies",1)[0]; if(!s) return "";
+    return `${insB(s.label)} (${fmt(s.value)}) is the strategy most likely to make ${who} book with an airline.`;
+  },out);
+  return out;
+}
+function hotelInsightSlides(){
+  const out=[], who=insWho();
+  /* 1 · the existing banner sentence (unchanged) */
+  insSlide(()=>{
+    const topStay=topN(q("accommodation"),1)[0]||{label:"—",value:0};
+    const nps=byLabel("hotelNPS","NPS Score");
+    const topFactor=topN(q("hotelConsiderations"),1)[0]||{label:"—",value:0};
+    const word=nps>=50?"strong":nps>=0?"moderate":"weak";
+    return `<b>${topStay.label}</b> is the preferred stay type (${fmt(topStay.value)}) for ${selectionLabel(activeSelections)}. Hotel NPS is ${word} at ${d3.format(".0f")(nps)}, and <b>${topFactor.label}</b> drives hotel choice most.`;
+  },out);
+  /* 2 · preferred hotel brand */
+  insSlide(()=>{
+    const b=insTop("hotelBrand",2); if(!b.length) return "";
+    return `${insB(b[0].label)} is the most preferred hotel brand (${fmt(b[0].value)})`+(b[1]?`, followed by ${insB(b[1].label)} (${fmt(b[1].value)})`:"")+` for ${who}.`;
+  },out);
+  /* 3 · top decision factors */
+  insSlide(()=>{
+    const f=insTop("hotelConsiderations",3); if(!f.length) return "";
+    return `${insList(f)} ${f.length>1?"are the top factors":"is the top factor"} when choosing a hotel for ${who}.`;
+  },out);
+  /* 4 · NPS breakdown */
+  insSlide(()=>{
+    const b=insNps("hotelNPS"), nps=byLabel("hotelNPS","NPS Score"); if(!b) return "";
+    return `Promoters (scores 9–10) make up <b>${fmt(b.pro)}</b> of ${who} versus ${fmt(b.det)} detractors (0–6), giving a hotel NPS of <b>${d3.format(".0f")(nps)}</b>.`;
+  },out);
+  /* 5 · loyalty programme */
+  insSlide(()=>{
+    const t2=byLabel("hotelLoyaltyImportance","Top 2 Box"), f=insTop("hotelLoyaltyFeatures",1)[0];
+    if(!(t2>0)&&!f) return "";
+    return (t2>0?`<b>${fmt(t2)}</b> of ${who} say hotel loyalty-program membership is important`:`Hotel loyalty programs`)+(f?`${t2>0?"; ":": "}${insB(f.label)} is the most valued feature (${fmt(f.value)}).`:".");
+  },out);
+  /* 6 · booking strategy */
+  insSlide(()=>{
+    const s=insTop("hotelStrategies",1)[0]; if(!s) return "";
+    return `${insB(s.label)} (${fmt(s.value)}) is the strategy most likely to make ${who} book with a hotel or accommodation provider.`;
+  },out);
+  return out;
+}
 function renderAirlineInsight(){
-  const topCarrier=topN(q("airlineCarrier"),1)[0];
-  const nps=byLabel("airlineNPS","NPS Score");
-  const topFactor=topN(q("airlineConsiderations"),1)[0];
-  const word=nps>=50?"strong":nps>=0?"moderate":"weak";
-  d3.select("#airlineInsight").html(`<b>${topCarrier.label}</b> leads carrier preference (${fmt(topCarrier.value)}) for ${selectionLabel(activeSelections)}. Airline NPS is ${word} at ${d3.format(".0f")(nps)}, and <b>${topFactor.label}</b> is the top factor when choosing an airline.`);
+  const slides=airlineInsightSlides();
+  if(window.TPInsightSlider) TPInsightSlider.set("airlineInsight",slides);
+  else d3.select("#airlineInsight").html(slides[0]||"");
 }
 function renderHotelInsight(){
-  const topStay=topN(q("accommodation"),1)[0]||{label:"—",value:0};
-  const nps=byLabel("hotelNPS","NPS Score");
-  const topFactor=topN(q("hotelConsiderations"),1)[0]||{label:"—",value:0};
-  const word=nps>=50?"strong":nps>=0?"moderate":"weak";
-  d3.select("#hotelInsight").html(`<b>${topStay.label}</b> is the preferred stay type (${fmt(topStay.value)}) for ${selectionLabel(activeSelections)}. Hotel NPS is ${word} at ${d3.format(".0f")(nps)}, and <b>${topFactor.label}</b> drives hotel choice most.`);
+  const slides=hotelInsightSlides();
+  if(window.TPInsightSlider) TPInsightSlider.set("hotelInsight",slides);
+  else d3.select("#hotelInsight").html(slides[0]||"");
 }
 function renderMarketInsight(){
   const rows=contextRows("Market");
@@ -1720,6 +1829,7 @@ function renderMarketInsight(){
 function renderOverview(){
   renderGlobalMap("#overviewMap","source");
   renderMapInsight("#mapInsight","source");
+  syncMarketSnapshot();
 
 }
 /* ── Per-stage percentage labels (% of Q2 respondents) ───────── */
@@ -1801,10 +1911,10 @@ function renderJourneyFlow(){
   const bookPct    = n ? fmt(bookCount / n) : "40%";
 
   const stages=[
-    {key:"Inspire",  label:"Inspire",  pct:inspirePct, tone:"purple"},
-    {key:"Plan",     label:"Plan",     pct:planPct,    tone:"gray"},
-    {key:"Book",     label:"Book",     pct:bookPct,    tone:"blue"},
-    {key:"On-Trip",  label:"During trip", pct:"",     tone:"light"}
+    {key:"Inspire",  label:"Inspire",  pct:inspirePct, tone:"purple", sub:"Why, where & what experiences"},
+    {key:"Plan",     label:"Plan",     pct:planPct,    tone:"gray",   sub:"Research, budget & timing"},
+    {key:"Book",     label:"Book",     pct:bookPct,    tone:"blue",   sub:"Channels, sequence & packages"},
+    {key:"On-Trip",  label:"During trip", pct:"",     tone:"light",  sub:"On-site spend & AI help"}
   ];
 
   const panelMap={
@@ -1835,6 +1945,7 @@ function renderJourneyFlow(){
       <span class="journey-step-icon">${STAGE_ICONS[d.key]||""}</span>
       <span class="journey-step-copy">
         <span class="journey-step-label">${d.label}</span>
+        ${d.sub?`<span class="journey-step-sub">${d.sub}</span>`:""}
       </span>
       ${d.pct?`<span class="journey-pct">${d.pct}</span>`:""}
     `)
@@ -2205,7 +2316,51 @@ function destinationResponseDistribution(rows){
     .map(([label,count])=>({label,count,total,value:total?count/total:0}));
 }
 
+let segmentJourneyScrollStarted=false;
+let segmentJourneyScrollFrame=0;
+
+function updateDashboardSegmentJourneyRails(){
+  const panel=document.querySelector('.tab-panel[data-panel="segments"]');
+  const view=panel?.querySelector(".segments-view-panel:not([hidden])");
+  const sections=[...(view?.querySelectorAll(".segment-question-section[data-journey-stage],.segment-spend-section[data-journey-stage]")||[])];
+  const activeTab=panel&&!panel.hidden&&document.body.classList.contains("segments-active");
+  const visibleSections=sections.map(section=>({section,rail:section.querySelector(".segment-journey-rail"),rect:section.getBoundingClientRect()}))
+    .filter(item=>item.rail&&item.rect.bottom>0&&item.rect.top<window.innerHeight);
+  const focus=window.innerHeight*.48;
+  const activeSection=activeTab&&segmentJourneyScrollStarted
+    ?visibleSections.find(item=>item.rect.top<=focus&&item.rect.bottom>=focus)?.section
+      ||visibleSections.sort((a,b)=>Math.abs((a.rect.top+a.rect.bottom)/2-focus)-Math.abs((b.rect.top+b.rect.bottom)/2-focus))[0]?.section
+    :null;
+  panel?.querySelectorAll(".segment-journey-rail").forEach(rail=>{
+    rail.classList.toggle("is-scroll-active",rail.closest("[data-journey-stage]")===activeSection);
+  });
+}
+
+function scheduleDashboardSegmentJourneyRailUpdate(){
+  if(segmentJourneyScrollFrame)return;
+  segmentJourneyScrollFrame=requestAnimationFrame(()=>{
+    segmentJourneyScrollFrame=0;
+    segmentJourneyScrollStarted=window.scrollY>24;
+    updateDashboardSegmentJourneyRails();
+  });
+}
+
+function bindDashboardSegmentJourneyRailScroll(){
+  const panel=document.querySelector('.tab-panel[data-panel="segments"]');
+  if(!panel||panel.dataset.journeyRailScrollBound)return;
+  panel.dataset.journeyRailScrollBound="true";
+  window.addEventListener("scroll",scheduleDashboardSegmentJourneyRailUpdate,{passive:true});
+  window.addEventListener("resize",scheduleDashboardSegmentJourneyRailUpdate);
+}
+
 function renderSegments(){
+  bindDashboardSegmentJourneyRailScroll();
+  const journeyStageByQuestion={
+    QS5:"Inspire",Q3:"Inspire",Q12:"Inspire",
+    Q7:"Plan",Q9:"Plan",Q5:"Plan",
+    Q8:"Book",Q8b:"Book",
+    Q14:"Airline",Q16:"Airline",Q21:"Hotel",Q22:"Hotel"
+  };
   const questions=[
     {key:"QS5",label:"Main purpose of trip",fields:["tripPurpose"]},
     {key:"Q3",label:"Destinations considered",fields:["Q3"]},
@@ -2316,6 +2471,9 @@ function renderSegments(){
           .map(([answer,count])=>({answer,count,value:answeredRows.length?count/answeredRows.length:0}))
           .sort((a,b)=>b.count-a.count||a.answer.localeCompare(b.answer));
       }
+      if(["Q16","Q22","Q12","Q7","Q9"].includes(question.key)){
+        rankedResponses=rankedResponses.filter(item=>!/^others?(?:\s*\(please\s+specify\))?$/i.test(item.answer));
+      }
       const responses=question.key==="Q3"||question.key==="Q5"||question.key==="Q14"||question.key==="Q21"?rankedResponses:rankedResponses.slice(0,7);
       const othersResponse=rankedResponses.find(item=>item.answer==="Others");
       if(othersResponse&&!responses.includes(othersResponse))responses[responses.length-1]=othersResponse;
@@ -2345,8 +2503,12 @@ function renderSegments(){
         </article>
       `;
     }).join("");
+    const journeyStage=journeyStageByQuestion[question.key]||"";
+    const journeyRail=journeyStage?`<aside class="segment-journey-rail" aria-label="${journeyStage} section"><span>${journeyStage}</span></aside>`:"";
+    const journeyAttribute=journeyStage?` data-journey-stage="${journeyStage}"`:"";
     return `
-      <section class="segment-question-section" aria-label="${question.key} ${escapeHtml(question.label)}">
+      <section class="segment-question-section"${journeyAttribute} aria-label="${question.key} ${escapeHtml(question.label)}">
+        ${journeyRail}
         <header class="segment-question-heading">
           <h3>${escapeHtml(question.label)}</h3>
         </header>
@@ -2393,6 +2555,13 @@ function renderSegments(){
   }).join("");
 
   spendCharts.forEach(chart=>donut(`#${chart.chartId}`,chart.data,"Budget change",[]));
+  const sizeJourneyRails=()=>document.querySelectorAll(".segments-view-panel:not([hidden]) .segment-journey-rail").forEach(rail=>{
+    const label=rail.querySelector("span");
+    if(label)rail.style.setProperty("--segment-journey-label-height",`${Math.ceil(label.scrollWidth||label.textContent.trim().length*7)}px`);
+  });
+  sizeJourneyRails();
+  if(document.fonts?.ready)document.fonts.ready.then(sizeJourneyRails);
+  scheduleDashboardSegmentJourneyRailUpdate();
 }
 
 function renderBehaviourDemographicCharts(){
@@ -3067,6 +3236,7 @@ function scheduleBehaviourHeavyRender(){
 }
 
 function renderBehaviour(){
+  if(window.TPPageGuide) TPPageGuide.update(activeRows().length);
   renderJourneyFlow();
   renderBehaviourInsight();
   scheduleBehaviourHeavyRender();
@@ -3338,7 +3508,7 @@ function renderAirlineComprehensive(){
       max:0.45,
       color:"#530095",
       disableFilter:true,
-      onClick:d=>showQ18Drill(d.label)
+      onClick:d=>showQ18Drill(d.label,d.match)
     });
 
     // Q18 close btn
@@ -3508,63 +3678,53 @@ function renderAirlineComprehensive(){
 }
 
 /* Q18 drilldown: show top 3 airlines for a Q17 strategy */
-function showQ18Drill(strategyLabel){
+function showQ18Drill(strategyLabel,strategyMatch=strategyLabel){
   const panel = document.getElementById("q18DrillPanel");
   const labelEl = document.getElementById("q18DrillLabel");
   const tilesEl = document.getElementById("q18DrillTiles");
   if(!panel || !tilesEl) return;
   panel.hidden = false;
   if(labelEl) labelEl.textContent = `Top 3 airlines associated with: "${strategyLabel}"`;
+  const definition=surveyDefinition("Q18"), matrix=DATA?.matrixIndex?.Q18||[];
+  const strategyKey=clean(strategyMatch).toLowerCase();
+  const strategy=(definition?.strategies||[]).find(item=>clean(item.label).toLowerCase()===strategyKey)
+    ||(definition?.strategies||[]).find(item=>clean(item.label).toLowerCase().startsWith(strategyKey));
+  if(!strategy||!matrix.length){
+    tilesEl.innerHTML='<div class="empty-chart">Airline association data is unavailable for this strategy.</div>';
+    return;
+  }
 
-  const STRATEGY_AIRLINE_MAP = {
-    "Lower fares & special offers": [
-      { name: "IndiGo", count: "68% association", color: "#ff7f2a" },
-      { name: "Air Arabia", count: "54% association", color: "#1f7fc9" },
-      { name: "Flydubai", count: "46% association", color: "#1f7fc9" }
-    ],
-    "More direct flight options": [
-      { name: "IndiGo", count: "62% association", color: "#ff7f2a" },
-      { name: "Air India", count: "51% association", color: "#452080" },
-      { name: "Emirates", count: "48% association", color: "#3db87e" }
-    ],
-    "Flexible change / cancel options": [
-      { name: "Emirates", count: "58% association", color: "#3db87e" },
-      { name: "Qatar Airways", count: "52% association", color: "#3db87e" },
-      { name: "Lufthansa", count: "44% association", color: "#ef476f" }
-    ],
-    "Better rewards & loyalty benefits": [
-      { name: "Emirates", count: "64% association", color: "#3db87e" },
-      { name: "Qatar Airways", count: "59% association", color: "#3db87e" },
-      { name: "Etihad Airways", count: "45% association", color: "#ff7f2a" }
-    ],
-    "Upgrade to higher class opportunity": [
-      { name: "Emirates", count: "66% association", color: "#3db87e" },
-      { name: "Qatar Airways", count: "61% association", color: "#3db87e" },
-      { name: "Etihad Airways", count: "50% association", color: "#ff7f2a" }
-    ],
-    "Assurance of fewer disruptions": [
-      { name: "Qatar Airways", count: "55% association", color: "#3db87e" },
-      { name: "Emirates", count: "53% association", color: "#3db87e" },
-      { name: "Lufthansa", count: "48% association", color: "#ef476f" }
-    ],
-    "Comfortable / stress-free experience": [
-      { name: "Emirates", count: "70% association", color: "#3db87e" },
-      { name: "Qatar Airways", count: "68% association", color: "#3db87e" },
-      { name: "Etihad Airways", count: "56% association", color: "#ff7f2a" }
-    ]
-  };
+  const strategyId=Number(strategy.id), carrierNameById=new Map((definition.rows||[]).map(row=>[Number(row.id),clean(row.label)]));
+  const cellsByCarrier=new Map(), strategyCellIndexes=new Set();
+  matrix.forEach((cell,index)=>{
+    if(Number(cell.strategy)!==strategyId)return;
+    strategyCellIndexes.add(index);
+    const carrierId=Number(cell.carrier), carrier=carrierNameById.get(carrierId);
+    if(!carrier||/^none of these$/i.test(carrier))return;
+    const key=carrier.toLowerCase();
+    if(!cellsByCarrier.has(key))cellsByCarrier.set(key,{name:carrier,indexes:new Set()});
+    cellsByCarrier.get(key).indexes.add(index);
+  });
+  const respondents=activeRows().filter(row=>Array.isArray(row.Q18)&&row.Q18.some(index=>strategyCellIndexes.has(Number(index))));
+  if(!respondents.length){
+    tilesEl.innerHTML='<div class="empty-chart">No respondents answered this strategy for the current filters.</div>';
+    return;
+  }
 
-  const top3 = STRATEGY_AIRLINE_MAP[strategyLabel] || [
-    { name: "IndiGo", count: "58% mentions", color: "#ff7f2a" },
-    { name: "Emirates", count: "52% mentions", color: "#3db87e" },
-    { name: "Qatar Airways", count: "44% mentions", color: "#3db87e" }
-  ];
-
+  const associationRows=[...cellsByCarrier.values()].map(carrier=>{
+    const yes=respondents.filter(row=>row.Q18.some(index=>carrier.indexes.has(Number(index)))).length;
+    const value=yes/respondents.length;
+    return {name:carrier.name,yes,base:respondents.length,value};
+  }).filter(row=>row.yes>0).sort((a,b)=>b.value-a.value||b.yes-a.yes||a.name.localeCompare(b.name)).slice(0,3);
+  const top3=associationRows.map(item=>({
+    ...item,
+    color:item.value>=0.5?"#00B5AC":item.value>=0.25?"#530095":"#FF5635"
+  }));
   tilesEl.innerHTML = top3.map((item, i) => `
     <div class="q18-airline-tile" style="border-top:3px solid ${item.color};">
       <div class="q18-tile-rank" style="color:${item.color};">#${i + 1}</div>
-      <div class="q18-tile-name">${item.name}</div>
-      <div class="q18-tile-count">${item.count}</div>
+      <div class="q18-tile-name">${escapeHtml(item.name)}</div>
+      <div class="q18-tile-count">${d3.format(".1%")(item.value)} association</div>
     </div>
   `).join("");
 }
@@ -3662,79 +3822,103 @@ function renderHotelComprehensive() {
     const el = document.getElementById("hotelStrategyChart");
     if (!el) return;
     const rows = activeRows();
+    const q23Definition=surveyDefinition("Q23"), q23Items=q23Definition?.items||[];
+    const q23Answered=rows.filter(row=>Array.isArray(row.Q23)&&row.Q23.some(value=>clean(value)));
+    const displayStrategyLabel=label=>{
+      const source=clean(label);
+      const shortLabels=[
+        [/^Ability to cancel \/ change/i,"Flexible cancellation / changes"],
+        [/^Ability to do last minute/i,"Last-minute cancellation / changes"],
+        [/^Assurance that the stay will be safe/i,"Safe & secure stay"],
+        [/^Quick support and assistance/i,"Quick disruption support"],
+        [/^Opportunity to upgrade/i,"Room upgrades"],
+        [/^Assurance of comfort/i,"Comfort & seamless stay"],
+        [/^Better rewards and benefits/i,"Rewards & loyalty benefits"],
+        [/^Lower room rates/i,"Lower room rates & special offers"],
+        [/^Flexible accommodation options/i,"Flexible accommodation options"],
+        [/^Exclusive experiences/i,"Exclusive experiences & added value"]
+      ];
+      return shortLabels.find(([pattern])=>pattern.test(source))?.[1]||source.replace(/\s*\(.*$/," ").trim();
+    };
+    const STRATEGIES=q23Items
+      .map(item=>clean(item.label))
+      .filter(label=>label&&!/^others?(?:\s*\(please\s+specify\))?$|^none of these$/i.test(label))
+      .map(match=>{
+        const yes=q23Answered.filter(row=>row.Q23.some(value=>clean(value)===match)).length;
+        const value=q23Answered.length?yes/q23Answered.length:0;
+        return {label:displayStrategyLabel(match),match,yes,total:q23Answered.length,value,color:value>=.5?"#00B5AC":value>=.25?"#530095":"#FF5635"};
+      })
+      .filter(item=>item.yes>0)
+      .sort((a,b)=>b.value-a.value||a.label.localeCompare(b.label))
+      .slice(0,7);
 
-    const STRATEGIES = [
-      { label: "Lower room rates & special offers", value: 0.65, color: "#3db87e", key: "rates" },
-      { label: "Flexible cancellation / last-min changes", value: 0.52, color: "#3db87e", key: "flex" },
-      { label: "Safe & secure stay assurance", value: 0.38, color: "#ef476f", key: "safe" },
-      { label: "Better rewards & loyalty benefits", value: 0.28, color: "#ff7f2a", key: "loyalty" },
-      { label: "Upgrade to higher room category", value: 0.22, color: "#ef476f", key: "upgrade" },
-      { label: "Comfort & seamless stay experience", value: 0.18, color: "#ff7f2a", key: "comfort" },
-      { label: "Exclusive experiences & added value", value: 0.14, color: "#7c3aed", key: "exp" }
-    ];
+    if(!STRATEGIES.length){
+      el.innerHTML='<div class="empty-chart">No hotel booking strategy responses for the current filters.</div>';
+      return;
+    }
 
     horizontalBars("#hotelStrategyChart",STRATEGIES,{
       height:300,
       color:"#530095",
       disableFilter:true,
-      onClick:d=>openQ24Drill(d.label,d.key)
+      onClick:d=>openQ24Drill(d.label,d.match)
     });
 
-    function openQ24Drill(strategyLabel, key) {
+    function openQ24Drill(strategyLabel, strategyMatch) {
       const panel = document.getElementById("q24DrillPanel");
       const labelEl = document.getElementById("q24DrillLabel");
       const tilesEl = document.getElementById("q24DrillTiles");
       if (!panel || !labelEl || !tilesEl) return;
-
-      const Q24_LOOKUP = {
-        rates: [
-          { name: "Marriott International", pct: 64, color: "#221345" },
-          { name: "Hyatt Hotels", pct: 58, color: "#3db87e" },
-          { name: "IHG", pct: 52, color: "#2563eb" }
-        ],
-        flex: [
-          { name: "Jumeirah Group", pct: 62, color: "#3db87e" },
-          { name: "Hilton Hotels", pct: 56, color: "#221345" },
-          { name: "Accor", pct: 49, color: "#ea580c" }
-        ],
-        safe: [
-          { name: "Marriott International", pct: 58, color: "#221345" },
-          { name: "Hyatt Hotels", pct: 54, color: "#3db87e" },
-          { name: "Shangri-La", pct: 46, color: "#ff7f2a" }
-        ],
-        loyalty: [
-          { name: "Marriott Bonvoy", pct: 68, color: "#221345" },
-          { name: "Hilton Honors", pct: 60, color: "#2563eb" },
-          { name: "World of Hyatt", pct: 55, color: "#3db87e" }
-        ],
-        upgrade: [
-          { name: "Jumeirah Group", pct: 55, color: "#3db87e" },
-          { name: "Hyatt Hotels", pct: 48, color: "#221345" },
-          { name: "Hilton Hotels", pct: 42, color: "#ff7f2a" }
-        ],
-        comfort: [
-          { name: "Shangri-La", pct: 50, color: "#ff7f2a" },
-          { name: "Marriott International", pct: 46, color: "#221345" },
-          { name: "Rotana Hotels", pct: 40, color: "#2563eb" }
-        ],
-        exp: [
-          { name: "Jumeirah Group", pct: 58, color: "#3db87e" },
-          { name: "Hyatt Hotels", pct: 50, color: "#221345" },
-          { name: "Local / Boutique", pct: 44, color: "#7c3aed" }
-        ]
-      };
-
-      const top3 = Q24_LOOKUP[key] || Q24_LOOKUP.rates;
       labelEl.textContent = `Top 3 Hotel Brands for: "${strategyLabel}"`;
-      tilesEl.innerHTML = top3.map((b, i) => `
-        <div class="q18-tile">
-          <div class="q18-rank" style="background:${b.color}">#${i + 1}</div>
-          <div class="q18-info">
-            <div class="q18-name">${b.name}</div>
-            <div class="q18-pct" style="color:${b.color}">${b.pct}% association</div>
-          </div>
+      const card=panel.closest(".hotel-slide-card");
+      card?.classList.add("q24-drill-open");
+      const renderAssociations=()=>{
+        const definition=surveyDefinition("Q24"), matrix=DATA?.matrixIndex?.Q24||[];
+        const strategyKey=clean(strategyMatch).toLowerCase();
+        const strategy=(definition?.strategies||[]).find(item=>clean(item.label).toLowerCase()===strategyKey);
+        if(!strategy||!matrix.length){
+          tilesEl.innerHTML='<div class="empty-chart">Hotel association data is unavailable for this strategy.</div>';
+          return;
+        }
+        const strategyId=Number(strategy.id), brandNameById=new Map((definition.rows||[]).map(row=>[Number(row.id),clean(row.label)]));
+        const strategyCellIndexes=new Set(), cellsByBrand=new Map();
+        matrix.forEach((cell,index)=>{
+          if(Number(cell.strategy)!==strategyId)return;
+          strategyCellIndexes.add(index);
+          const brandId=Number(cell.brand), brand=brandNameById.get(brandId);
+          if(!brand||/^none of these$/i.test(brand))return;
+          const key=brand.toLowerCase();
+          if(!cellsByBrand.has(key))cellsByBrand.set(key,{name:brand,indexes:new Set()});
+          cellsByBrand.get(key).indexes.add(index);
+        });
+        const respondents=activeRows().filter(row=>Array.isArray(row.Q24)&&row.Q24.some(index=>strategyCellIndexes.has(Number(index))));
+        if(!respondents.length){
+          tilesEl.innerHTML='<div class="empty-chart">No respondents answered this strategy for the current filters.</div>';
+          return;
+        }
+        const top3=[...cellsByBrand.values()].map(brand=>{
+          const yes=respondents.filter(row=>row.Q24.some(index=>brand.indexes.has(Number(index)))).length;
+          const pct=yes/respondents.length;
+          return {...brand,yes,base:respondents.length,pct};
+        }).filter(brand=>brand.yes>0)
+          .sort((a,b)=>b.pct-a.pct||b.yes-a.yes||a.name.localeCompare(b.name)).slice(0,3);
+        if(!top3.length){
+          tilesEl.innerHTML='<div class="empty-chart">No hotel brand associations for this strategy and filter.</div>';
+          return;
+        }
+        tilesEl.innerHTML = top3.map((brand, i) => {
+          const color=brand.pct>=.5?"#00B5AC":brand.pct>=.25?"#530095":"#FF5635";
+          return `
+        <div class="q18-airline-tile" style="border-top:3px solid ${color};">
+          <div class="q18-tile-rank" style="color:${color};">#${i + 1}</div>
+          <div class="q18-tile-name">${escapeHtml(brand.name)}</div>
+          <div class="q18-tile-count">${d3.format(".1%")(brand.pct)} association</div>
         </div>
-      `).join("");
+          `;
+        }).join("");
+      };
+      if(DATA?.matrixIndex?.Q24?.length)renderAssociations();
+      else ensureMatrixLoaded("Q24").then(renderAssociations);
       panel.hidden = false;
     }
 
@@ -3743,7 +3927,10 @@ function renderHotelComprehensive() {
       closeBtn.dataset.bound = "1";
       closeBtn.addEventListener("click", () => {
         const panel = document.getElementById("q24DrillPanel");
-        if (panel) panel.hidden = true;
+        if (panel) {
+          panel.hidden = true;
+          panel.closest(".hotel-slide-card")?.classList.remove("q24-drill-open");
+        }
       });
     }
   })();
@@ -4104,7 +4291,7 @@ function renderDestinationComprehensive() {
       return;
     }
 
-    const projection = d3.geoNaturalEarth1();
+    const projection = makeMapProjection();
     const fitFeatures2=countries.features.filter(f=>f.properties?.name!=="Antarctica");
     projection.fitExtent([[6, 6], [w - 6, h - 30]], {type:"FeatureCollection",features:fitFeatures2});
     const path = d3.geoPath(projection);
@@ -4142,7 +4329,7 @@ function renderDestinationComprehensive() {
       })
       .attr("stroke", d => {
         const did = getDestIdForCountryName(d.properties?.name, d.properties?.iso_a3);
-        return did === currentSelectedDest?.id ? "#fff" : "#fff";
+        return did === currentSelectedDest?.id ? "#000" : "#000";
       })
       .attr("stroke-width", d => {
         const did = getDestIdForCountryName(d.properties?.name, d.properties?.iso_a3);
@@ -4184,7 +4371,7 @@ function renderDestinationComprehensive() {
             const dest = DEST_DATA.find(x => x.id === t.id);
             return dest ? colorScale(dest.marPos) : "#ddd8ee";
           })
-          .attr("stroke", "#fff").attr("stroke-width", 1.2);
+          .attr("stroke", "#000").attr("stroke-width", 1.2);
         s.append("text").attr("x", 6).attr("y", 3).attr("font-size", 7).attr("fill", "#444")
           .text(t => t.code);
       })
@@ -4213,7 +4400,7 @@ function renderDestinationComprehensive() {
       g.selectAll(".dest-geo-country")
         .attr("stroke", d => {
           const did = getDestIdForCountryName(d.properties?.name, d.properties?.iso_a3);
-          return did === dest.id ? "#fff" : "#fff";
+          return did === dest.id ? "#000" : "#000";
         })
         .attr("stroke-width", d => {
           const did = getDestIdForCountryName(d.properties?.name, d.properties?.iso_a3);
@@ -4670,8 +4857,11 @@ function renderGlobalMap(sel,mode,heatMetric,rowFilter){
     if(allVals.length){
       const q=d3.scaleQuantile().domain(allVals).range(HEAT5);
       colorScale=v=>q(v);
+      /* hand the real bucket cut points to the shared legend (map-legend.js) */
+      window.__tpSourceLegend={cuts:q.quantiles(),min:allVals[0],max:allVals[allVals.length-1]};
     } else {
       colorScale=()=>HEAT5[0];
+      window.__tpSourceLegend=null;
     }
   } else {
     if(cfg.midpoint!==undefined){
@@ -4741,7 +4931,7 @@ function renderGlobalMap(sel,mode,heatMetric,rowFilter){
         const mn=marketFromGeoFeature(f);
         return mn ? marketOpacity(mn) : (hasMarketSelection ? .7 : 1);
       })
-      .attr("stroke","#fff").attr("stroke-width",0.3)
+      .attr("stroke","#000").attr("stroke-width",0.3)
       .style("cursor","default").style("pointer-events","none");
 
   /* ── Pass 2: market countries re-drawn on top ── */
@@ -4754,7 +4944,7 @@ function renderGlobalMap(sel,mode,heatMetric,rowFilter){
         return displayedMarketFill(mn);
       })
       .attr("opacity",f=>marketOpacity(marketFromGeoFeature(f)))
-      .attr("stroke",f=>selectedSet.has(marketFromGeoFeature(f))?SELECTED_MARKET_STROKE:"#fff")
+      .attr("stroke",f=>selectedSet.has(marketFromGeoFeature(f))?SELECTED_MARKET_STROKE:"#000")
       .attr("stroke-width",f=>marketStrokeWidth(marketFromGeoFeature(f)))
       .style("cursor","pointer")
       .style("filter",f=>marketFilter(marketFromGeoFeature(f)))
@@ -4787,7 +4977,7 @@ function renderGlobalMap(sel,mode,heatMetric,rowFilter){
     .call(s=>{
       s.append("circle").attr("r",5)
         .attr("fill",m=>displayedMarketFill(m))
-        .attr("stroke",m=>selectedSet.has(m)?SELECTED_MARKET_STROKE:"#fff").attr("stroke-width",m=>selectedSet.has(m)?2.4:1.2);
+        .attr("stroke",m=>selectedSet.has(m)?SELECTED_MARKET_STROKE:"#000").attr("stroke-width",m=>selectedSet.has(m)?2.4:1.2);
       s.append("text").attr("x",6).attr("y",3).attr("font-size",7).attr("fill","#444")
         .text(m=>m==="Singapore"?"SG":"BH");
     })
@@ -4795,25 +4985,7 @@ function renderGlobalMap(sel,mode,heatMetric,rowFilter){
     .on("mousemove",(e,m)=>{const v=getVal(m);if(v===null){hideTip();return;}const bm=byMarket[m]||{};showTip(e,{label:m,value:`${cfg.label}: ${cfg.fmt(v)}  (n=${bm.n})`},true);})
     .on("mouseleave",hideTip);
 
-  /* ── Selected market callout (overview only; country polygons carry highlight) ─────── */
-  selected.filter(selName=>MARKET_COORDS[selName]).forEach(selName=>{
-    const p=projection(MARKET_COORDS[selName]);
-    if(isOverview&&selected.length===1){
-      /* Dark callout popup on map */
-      const bm=byMarket[selName]||{};
-      const v=getVal(selName);
-      const cx=12, cy=12;   /* fixed top-left: map is zoomed to the selection */
-      const fo=svg.append("foreignObject")
-        .attr("x",cx).attr("y",cy)
-        .attr("width",170).attr("height",80);
-      const div=fo.append("xhtml:div").attr("class","map-callout");
-      div.html(`
-        <div class="map-callout-title">${selName} — Selected</div>
-        <div class="map-callout-tsi">n = ${bm.n||0} respondents</div>
-        <div style="color:rgba(255,255,255,.7);font-size:8px;margin-top:3px">→ Click for source market breakdown</div>
-      `);
-    }
-  });
+  /* (the old dark "Selected / n = … respondents" callout was removed: the chip + snapshot button in the map corner replace it) */
 
   /* ── Gradient legend for airline/hotel/behaviour tabs ─ */
   if(!isOverview){
@@ -4871,6 +5043,7 @@ function renderMapInsight(sel,mode){
       <div class="msnap-header">
         <h3>Source: ${mktLabel} — Market Snapshot</h3>
         ${market&&market!=="All"?`<span class="msnap-tag">${market.slice(0,8).toUpperCase()}</span>`:""}
+        <button type="button" class="msnap-close" aria-label="Close market snapshot" title="Close">✕</button>
       </div>
       <div class="msnap-kpis">
         <div class="msnap-kpi">
@@ -4937,7 +5110,87 @@ function renderMapInsight(sel,mode){
 }
 
 
+/* ---------- market selection: toggle / clear / snapshot panel ---------- */
+function clearMarketSelection(){
+  closeMarketSnapshot();
+  if(typeof setRegionMarketSelection==="function"){ setRegionMarketSelection([]); return; }
+  resetFilters();   /* fallback if smart-filters.js is not loaded */
+}
+function openMarketSnapshot(){
+  const w=document.querySelector("#overviewPanel .overview-map-wrapper");
+  if(!w) return;
+  renderMapInsight("#mapInsight","source");          /* make sure it shows the current selection */
+  w.classList.add("snapshot-open");
+  const btn=w.querySelector(".msnap-close"); if(btn) btn.focus({preventScroll:true});
+}
+function closeMarketSnapshot(){
+  document.querySelectorAll(".overview-map-wrapper.snapshot-open").forEach(w=>w.classList.remove("snapshot-open"));
+}
+function syncMarketSnapshot(){   /* close the panel if there is no single selected market any more */
+  const m=(typeof selectedMarket==="function")?selectedMarket():"All";
+  if(!(m&&m!=="All")) closeMarketSnapshot();
+}
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeMarketSnapshot(); });
+document.addEventListener("click",e=>{ if(e.target.closest&&e.target.closest(".msnap-close")) closeMarketSnapshot(); });
+
+/* ---------- "Selected: X  ✕ Clear selection" chip on every map ----------
+   Shown on each map (Source, Airline, Hotel, Destination, …) whenever a market is selected,
+   so the selection is visible and can always be undone from the map itself. */
+const MAP_CLEAR_TARGETS=["#overviewMap","#airlineSentimentMap","#hotelSentimentMap","#behaviourMap","#marketMap","#destSentimentMap"];
+function marketSelectionText(list){
+  if(list.length===1) return list[0];
+  if(list.length===2) return list.join(", ");
+  return list.length+" countries selected";
+}
+/* one small stack in the top-right corner of a map; each chip = one removable selection */
+function setMapChip(host,key,text,onClear){
+  if(!host) return;
+  let stack=host.querySelector(":scope > .map-chip-stack");
+  let chip=stack&&stack.querySelector('[data-chip="'+key+'"]');
+  if(!text){ if(chip) chip.remove(); if(stack&&!stack.children.length) stack.remove(); return; }
+  if(!stack){ stack=document.createElement("div"); stack.className="map-chip-stack"; host.appendChild(stack); }
+  if(!chip){
+    chip=document.createElement("div");
+    chip.className="map-clear-chip"; chip.setAttribute("data-chip",key);
+    chip.innerHTML='<span class="map-clear-text"></span><button type="button" class="map-clear-btn">✕ Clear selection</button>';
+    stack.appendChild(chip);
+  }
+  chip.querySelector(".map-clear-text").textContent=text;
+  chip.querySelector("button").onclick=e=>{e.stopPropagation(); onClear();};
+}
+/* a button on its own line under the chips (used for "View market snapshot" on the Source map) */
+function setMapButton(host,key,text,onClick){
+  if(!host) return;
+  let stack=host.querySelector(":scope > .map-chip-stack");
+  let btn=stack&&stack.querySelector('[data-chip="'+key+'"]');
+  if(!text){ if(btn) btn.remove(); if(stack&&!stack.children.length) stack.remove(); return; }
+  if(!stack){ stack=document.createElement("div"); stack.className="map-chip-stack"; host.appendChild(stack); }
+  if(!btn){ btn=document.createElement("button"); btn.type="button"; btn.className="map-snap-btn"; btn.setAttribute("data-chip",key); stack.appendChild(btn); }
+  btn.textContent=text; btn.onclick=e=>{e.stopPropagation(); onClick();};
+}
+function syncMapClearChips(){
+  const sel=((typeof filterSelections!=="undefined"&&filterSelections.Market)||[]).slice();
+  MAP_CLEAR_TARGETS.forEach(s=>{
+    const el=document.querySelector(s); if(!el||!el.parentElement) return;
+    const text=sel.length?((s==="#destSentimentMap"?"Source: ":"Selected: ")+marketSelectionText(sel)):"";
+    setMapChip(el.parentElement,"market",text,clearMarketSelection);
+    /* Source map, exactly one market selected: the market snapshot button goes on the next line */
+    if(s==="#overviewMap") setMapButton(el.parentElement,"snap",sel.length===1?"View market snapshot \u203a":"",openMarketSnapshot);
+  });
+  /* Destination map: the selected destination gets the same chip */
+  const dm=document.querySelector("#destSentimentMap");
+  if(dm&&dm.parentElement){
+    const d=(typeof window._dGetSelCountry==="function")?window._dGetSelCountry():null;
+    setMapChip(dm.parentElement,"dest",d?("Destination: "+d):"",()=>{ if(window._dSentClear) window._dSentClear(); setTimeout(syncMapClearChips,0); });
+  }
+  if(window.TPMapLegend) TPMapLegend.sync();
+}
+window.syncMapClearChips=syncMapClearChips;
+
 function selectMarketFromMap(market){
+  /* clicking the market that is already the ONLY selection un-selects it (other filters are kept) */
+  const current=(typeof filterSelections!=="undefined"&&filterSelections.Market)||[];
+  if(current.length===1&&current[0]===market){ clearMarketSelection(); return; }
   if(typeof setRegionMarketSelection==="function"){
     setRegionMarketSelection([market]);
     return;
@@ -6518,7 +6771,9 @@ function renderActive(){
     }
     const fn={overview:renderOverview,behaviour:renderBehaviour,airline:renderAirline,hotel:renderHotel,segments:renderSegments,market:renderMarket,destination:renderDestination,social:renderSocial}[currentTab];
     if(fn)fn();
+    if(currentTab==="readme"&&window.TPReadMe) TPReadMe.render();
     updateVisibleSampleWarnings();
+    syncMapClearChips();
   });
 }
 
@@ -6712,3 +6967,124 @@ function setFilterDim(dim){
     updateFilterSummaries(); updateSegmentBase(); renderActive();
   },"Updating dashboard...");
 }
+
+/* ================================================================
+   Travel Pulse — shared map legend  (map-legend.js)
+   One legend design, position and wording for EVERY map:
+     • Source Market Overview  → respondents per market (5 equal-sized groups, live ranges)
+     • Destination / Airline / Hotels → sentiment score (−100 … +100)
+   The old per-map legends are hidden (see map-legend.css); the colours on the maps are untouched.
+   ================================================================ */
+(function () {
+  "use strict";
+
+  /* styles live here too, so this module needs no extra CSS file */
+  var CSS = "/* Travel Pulse — shared map legend: one look, one place, on every map */\n.sentiment-scale-legend, .dest-sentiment-legend{ display:none!important }   /* replaced by the shared legend */\n\n.overview-map-left{ position:relative }\n.tp-maplegend{\n  position:absolute; left:50%; bottom:12px; transform:translateX(-50%);\n  z-index:12;\n  display:flex; align-items:center; flex-wrap:wrap; justify-content:center; gap:6px 12px;\n  max-width:calc(100% - 24px);\n  background:rgba(255,255,255,.96); border:1px solid #d9d1ec; border-radius:999px;\n  padding:6px 16px;\n  box-shadow:0 3px 12px rgba(30,21,48,.16);\n  font:600 12px/1.2 'DM Sans',system-ui,sans-serif; color:#3a1a73;\n  pointer-events:auto;\n}\n.tp-lg-t{ font-weight:800; color:#1f1147 }\n.tp-lg-bar{ display:inline-block; width:130px; height:10px; border-radius:3px; border:1px solid rgba(0,0,0,.12) }\n.tp-lg-neg{ color:#d9003a } .tp-lg-neu{ color:#8a6a00 } .tp-lg-pos{ color:#007a00 }\n.tp-lg-it, .tp-lg-nd{ display:inline-flex; align-items:center; gap:5px; white-space:nowrap }\n.tp-lg-nd{ padding-left:12px; border-left:1px solid #d9d1ec; color:#5b5272 }\n.tp-lg-sw{ display:inline-block; width:22px; height:11px; border:1px solid rgba(0,0,0,.3) }\n";
+  function injectCss() {
+    if (document.getElementById("tpMapLegendCss")) return;
+    var st = document.createElement("style"); st.id = "tpMapLegendCss"; st.textContent = CSS; document.head.appendChild(st);
+  }
+  injectCss();
+
+  var HEAT5 = ["#FFF3B0", "#FFE066", "#FFC21A", "#FF9A1F", "#F2600C"];   /* same palette as the Source map */
+  var DEFAULT_GRAD = "linear-gradient(to right,#e4003a,#ff7900,#ffd400,#17b800,#008a00,#006f00)";
+  var DEFAULT_NODATA = "#c8c8c8";
+  var SOURCE_NODATA = "#ddd8ee";
+
+  var SENT_MAPS = [
+    { sel: "#airlineSentimentMap", bar: ".sentiment-scale-legend .sentiment-scale-bar", nod: ".sentiment-scale-legend .sentiment-scale-no-data i" },
+    { sel: "#hotelSentimentMap",   bar: ".sentiment-scale-legend .sentiment-scale-bar", nod: ".sentiment-scale-legend .sentiment-scale-no-data i" },
+    { sel: "#destSentimentMap",    bar: "#destSentimentLegend span[style*='gradient']", nod: null }
+  ];
+
+  function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
+  function bg(node, prop) { try { var v = getComputedStyle(node)[prop]; return v && v !== "none" && v !== "rgba(0, 0, 0, 0)" ? v : null; } catch (e) { return null; } }
+  function sw(color) { var s = el("i", "tp-lg-sw"); s.style.background = color; return s; }
+
+  function put(host, key, sig, build) {
+    if (!host) return;
+    var cur = null;
+    for (var i = 0; i < host.children.length; i++) { var c = host.children[i]; if (c.classList && c.classList.contains("tp-maplegend") && c.getAttribute("data-key") === key) cur = c; }
+    if (!sig) { if (cur) cur.remove(); return; }
+    if (cur && cur.getAttribute("data-sig") === sig) return;          /* nothing changed → no DOM work */
+    var fresh = build(); fresh.setAttribute("data-key", key); fresh.setAttribute("data-sig", sig);
+    if (cur) cur.replaceWith(fresh); else host.appendChild(fresh);
+  }
+
+  function sentimentLegend(grad, noData) {
+    var d = el("div", "tp-maplegend");
+    d.setAttribute("role", "img");
+    d.setAttribute("aria-label", "Map legend. Sentiment score from negative 100 to positive 100. Grey means no data.");
+    d.appendChild(el("strong", "tp-lg-t", "Sentiment score"));
+    var bar = el("span", "tp-lg-bar"); bar.style.background = grad; d.appendChild(bar);
+    d.appendChild(el("span", "tp-lg-neg", "Negative (\u2212100)"));
+    d.appendChild(el("span", "tp-lg-neu", "Neutral (0)"));
+    d.appendChild(el("span", "tp-lg-pos", "Positive (+100)"));
+    var nd = el("span", "tp-lg-nd"); nd.appendChild(sw(noData)); nd.appendChild(document.createTextNode("No data")); d.appendChild(nd);
+    return d;
+  }
+
+  function sourceLegend(info) {
+    var d = el("div", "tp-maplegend");
+    d.setAttribute("role", "img");
+    d.setAttribute("aria-label", "Map legend. Colour shows the number of survey respondents per source market, in five equal-sized groups from low to high. Grey means no respondents.");
+    d.title = "Markets are split into five equal-sized groups by number of survey respondents.";
+    d.appendChild(el("strong", "tp-lg-t", "Respondents per market"));
+    info.steps.forEach(function (st) {
+      var it = el("span", "tp-lg-it"); it.appendChild(sw(st.color)); it.appendChild(document.createTextNode(st.range)); d.appendChild(it);
+    });
+    var nd = el("span", "tp-lg-nd"); nd.appendChild(sw(SOURCE_NODATA)); nd.appendChild(document.createTextNode("No respondents")); d.appendChild(nd);
+    return d;
+  }
+
+  /* Buckets exactly as the map draws them (d3.scaleQuantile): a market with n respondents goes to bucket i when
+     cut[i-1] <= n < cut[i]. Respondent counts are whole numbers. Steps nobody falls into (possible when many
+     markets share the same n) are left out, so the legend only lists colours that really appear on the map. */
+  function sourceInfo() {
+    var s = window.__tpSourceLegend; if (!s || !s.cuts || !isFinite(s.min)) return null;
+    var cuts = s.cuts, steps = [];
+    for (var i = 0; i < 5; i++) {
+      var lo = i === 0 ? s.min : Math.max(s.min, Math.ceil(cuts[i - 1]));
+      var hi = i === 4 ? s.max : Math.min(s.max, Math.ceil(cuts[i]) - 1);
+      if (hi < lo) continue;
+      steps.push({ color: HEAT5[i], range: lo === hi ? String(lo) : lo + "\u2013" + hi });
+    }
+    if (!steps.length) return null;
+    return { steps: steps, sig: "src|" + steps.map(function (x) { return x.color + x.range; }).join("|") };
+  }
+
+  var observed = new WeakSet(), timer = null;
+  function sync() {
+    var so = document.querySelector("#overviewMap");
+    if (so && so.parentElement) {
+      var info = sourceInfo();
+      put(so.parentElement, "src", info ? info.sig : "", function () { return sourceLegend(info); });
+      watch(so.parentElement);
+    }
+    SENT_MAPS.forEach(function (m) {
+      var map = document.querySelector(m.sel); if (!map || !map.parentElement) return;
+      var scope = map.parentElement.parentElement || map.parentElement;
+      var barEl = scope.querySelector(m.bar) || document.querySelector(m.bar);
+      var grad = (barEl && bg(barEl, "backgroundImage")) || DEFAULT_GRAD;
+      var nodEl = m.nod ? (scope.querySelector(m.nod) || document.querySelector(m.nod)) : null;
+      var nod = (nodEl && bg(nodEl, "backgroundColor")) || DEFAULT_NODATA;
+      put(map.parentElement, "sent", "sent|" + grad + "|" + nod, function () { return sentimentLegend(grad, nod); });
+      watch(map.parentElement);
+    });
+  }
+  function schedule() { clearTimeout(timer); timer = setTimeout(sync, 150); }
+  function watch(host) {                       /* maps redraw on their own: keep the legend in step */
+    if (observed.has(host)) return; observed.add(host);
+    new MutationObserver(schedule).observe(host, { childList: true, subtree: true });
+  }
+
+  /* safety net: re-check on load, on every tab / sub-tab click, and once a second (cheap and idempotent),
+     so a map that draws late can never be left without its legend */
+  document.addEventListener("click", function (e) { if (e.target.closest && e.target.closest(".tab, .subtab, [data-subtab], [data-view], button")) schedule(); }, true);
+  window.addEventListener("load", sync);
+  if (document.readyState !== "loading") sync(); else document.addEventListener("DOMContentLoaded", sync);
+  setInterval(sync, 1000);
+
+  window.TPMapLegend = { sync: sync };
+})();
+
