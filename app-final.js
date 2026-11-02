@@ -249,10 +249,69 @@ const METRIC_CFG={
 })();
 
 /* ══ MAP HELPERS: fit-to-width + zoom to selected country / region ═════════ */
-const MAP_FIT_GEOM={type:"MultiPoint",coordinates:[[-180,0],[180,0],[0,80],[0,-57]]};
-/* MAP PROJECTION: flat rectangular map (equirectangular). To go back to the curved look,
-   change d3.geoEquirectangular to d3.geoNaturalEarth1. Other flat option: d3.geoMercator. */
-const makeMapProjection=()=>d3.geoEquirectangular();
+/* visible latitude window of every map (smaller MAP_LAT_TOP = shorter map) */
+const MAP_LAT_TOP=76, MAP_LAT_BOTTOM=-56;
+const MAP_FIT_GEOM={type:"MultiPoint",coordinates:[[-180,0],[180,0],[0,MAP_LAT_TOP],[0,MAP_LAT_BOTTOM]]};
+/* ================================================================
+   Shared look of every map (Source, Destination, Airline, Hotels)
+   • one soft red → green scale for sentiment maps, one purple scale for the Source map, one grey for "no data"
+   • one selection style: the selected country gets a thin black border; every other country keeps its colour
+     but is dimmed with a grey wash. Applied after each map draw, so all four maps behave identically.
+   ================================================================ */
+var TPMapStyle=(function(){
+  var NODATA="#e3e3e8";
+  var SENT=[[-100,"#a82e27"],[-50,"#d9695a"],[-20,"#eba588"],[0,"#f1d9a7"],[20,"#cfdc9e"],[50,"#8dc487"],[100,"#2f8f5b"]];
+  var HEAT5=["#cdb9f0","#aa8be0","#8660cc","#6a3bb5","#4b0f8f"];
+  var scale=d3.scaleLinear().domain(SENT.map(function(x){return x[0];})).range(SENT.map(function(x){return x[1];})).clamp(true);
+  function sentColor(score){ return Number.isFinite(score)?scale(Math.max(-100,Math.min(100,score))):NODATA; }
+  var sentGradient="linear-gradient(to right,"+SENT.map(function(x){return x[1]+" "+((x[0]+100)/2)+"%";}).join(",")+")";
+
+  var CSS=
+    "svg.tp-has-sel .tp-dim{opacity:.45!important;filter:grayscale(.6) brightness(1.04)}"+
+    "svg .tp-sel{opacity:1!important;stroke:#000!important;stroke-width:1.2px!important;filter:none!important;paint-order:fill stroke!important}"+
+    "svg g.map-dot.tp-dim{opacity:.45!important;filter:grayscale(.6)}"+
+    "svg g.map-dot.tp-sel circle{stroke:#000!important;stroke-width:1.4px!important}";
+  var st=document.createElement("style"); st.id="tpMapStyleCss"; st.textContent=CSS; document.head.appendChild(st);
+
+  var MAPS=[["#overviewMap","market"],["#airlineSentimentMap","market"],["#hotelSentimentMap","market"],["#destSentimentMap","dest"]];
+  function toGeo(m){ try{ return typeof _geoName==="function"?_geoName(m):m; }catch(e){ return m; } }
+  function selectedNames(kind){
+    var set=new Set(), ms=(typeof filterSelections!=="undefined"&&filterSelections.Market)||[];
+    ms.forEach(function(m){ set.add((kind==="dest"&&typeof _dSourceMarketToGeo==="function")?_dSourceMarketToGeo(m):toGeo(m)); });
+    if(kind==="dest"&&typeof window._dGetSelCountry==="function"){ var d=window._dGetSelCountry(); if(d) set.add(d); }
+    return set;
+  }
+  function geoOf(p){
+    return p.getAttribute("data-geoname")||p.getAttribute("data-dgeoname")||
+           (p.__data__&&p.__data__.properties&&p.__data__.properties.name)||"";
+  }
+  function apply(){
+    MAPS.forEach(function(m){
+      var root=document.querySelector(m[0]); if(!root) return;
+      var svg=root.querySelector("svg"); if(!svg) return;
+      var names=selectedNames(m[1]), has=names.size>0, sig=Array.from(names).sort().join("|");
+      svg.classList.toggle("tp-has-sel",has);
+      var raise=(svg.__tpSig!==sig);
+      svg.querySelectorAll(".world-land path, .market-layer path, .d-bg path, .d-fg path").forEach(function(p){
+        var g=geoOf(p), sel=has&&!!g&&names.has(g);
+        p.classList.toggle("tp-sel",sel); p.classList.toggle("tp-dim",has&&!sel);
+        if(sel&&raise&&p.parentNode.lastElementChild!==p) p.parentNode.appendChild(p);   /* draw its outline on top, once */
+      });
+      svg.querySelectorAll("g.map-dot").forEach(function(gEl){
+        var mk=null; try{ mk=d3.select(gEl).datum(); }catch(e){}
+        var sel=has&&typeof mk==="string"&&names.has(toGeo(mk));
+        gEl.classList.toggle("tp-sel",sel); gEl.classList.toggle("tp-dim",has&&!sel);
+      });
+      svg.__tpSig=sig;
+    });
+  }
+  return {NODATA:NODATA,HEAT5:HEAT5,SENT:SENT,sentColor:sentColor,sentGradient:sentGradient,apply:apply};
+})();
+
+/* MAP PROJECTION: flat Mercator map (the familiar "web map" look).
+   To change the look, replace d3.geoMercator with d3.geoNaturalEarth1 (curved) or d3.geoEquirectangular (flat, squat).
+   The visible latitude window is MAP_LAT_TOP / MAP_LAT_BOTTOM below: a smaller top value = a shorter map. */
+const makeMapProjection=()=>d3.geoMercator();
 /* Projection that fills the FULL width (no side gaps). Poles are cropped. */
 function mapFitWorld(w,padX){
   padX=padX==null?2:padX;
@@ -351,7 +410,7 @@ function ensureOptionalScriptsForTab(tabName) {
     jobs.push(loadScriptOnce("https://cdnjs.cloudflare.com/ajax/libs/d3-cloud/1.2.5/d3.layout.cloud.min.js")
       .then(() => loadScriptOnce("enhancement.js?v=20260928_v47")));
   } else if (tabName === "destination") {
-    jobs.push(loadScriptOnce("dest-sentiment-engine.js?v=20261031_blackborder"));
+    jobs.push(loadScriptOnce("dest-sentiment-engine.js?v=20261104_srcsent"));
   } else if (tabName === "social") {
     jobs.push(loadScriptOnce("enhancement.js?v=20260928_v47"));
   }
@@ -577,11 +636,7 @@ function loadHotelPeriodSentimentData(){
 }
 
 function hotelSentimentColor(score){
-  if(!Number.isFinite(score)) return "#ddd8ee";
-  return d3.scaleLinear()
-    .domain([-100,-50,-10,20,60,100])
-    .range(["#e4003a","#ff7900","#ffd400","#17b800","#008a00","#006f00"])
-    .clamp(true)(score);
+  return TPMapStyle.sentColor(score);      /* one soft red → green scale for every sentiment map */
 }
 
 function hotelSentimentScoreText(score){
@@ -972,9 +1027,9 @@ function renderHotelSentimentMap(data){
     return;
   }
 
-  const w=Math.max(680,(el.clientWidth||760)-36);     /* minus the container's side padding */
+  const w=Math.max(680,el.clientWidth||760);     /* full width of the map frame (same as the Source map) */
   const _fit=mapFitWorld(w);
-  const h=_fit.height+10;
+  const h=_fit.height+4;                              /* same margin as the Source map */
   d3.select(sel).selectAll("*").remove();
 
   const svg=d3.select(sel).append("svg")
@@ -1022,7 +1077,7 @@ function renderHotelSentimentMap(data){
   }
   function marketFill(market){
     const score=marketScore(market);
-    return Number.isFinite(score)?hotelSentimentColor(score):"#ddd8ee";
+    return Number.isFinite(score)?hotelSentimentColor(score):TPMapStyle.NODATA;
   }
   const displayedMarketFill=market=>marketFill(market);
   function polyArea(feat){
@@ -1043,7 +1098,7 @@ function renderHotelSentimentMap(data){
       .attr("d",path)
       .attr("fill",f=>{
         const market=marketFromGeoFeature(f);
-        if(!market) return "#e8e2f4";
+        if(!market) return TPMapStyle.NODATA;
         return displayedMarketFill(market);
       })
       .attr("opacity",f=>{
@@ -1272,9 +1327,9 @@ function renderAirlineSentimentMap(data){
     return;
   }
 
-  const w=Math.max(680,(el.clientWidth||760)-36);     /* minus the container's side padding */
+  const w=Math.max(680,el.clientWidth||760);     /* full width of the map frame (same as the Source map) */
   const _fit=mapFitWorld(w);
-  const h=_fit.height+10;
+  const h=_fit.height+4;                              /* same margin as the Source map */
   d3.select(sel).selectAll("*").remove();
 
   const svg=d3.select(sel).append("svg")
@@ -1318,7 +1373,7 @@ function renderAirlineSentimentMap(data){
   function marketTotal(market){ return mktLookup(data.markets,market)?.total||0; }
   function marketFill(market){
     const score=marketScore(market);
-    return Number.isFinite(score)?hotelSentimentColor(score):"#ddd8ee";
+    return Number.isFinite(score)?hotelSentimentColor(score):TPMapStyle.NODATA;
   }
   const displayedMarketFill=market=>marketFill(market);
   function polyArea(feat){
@@ -1339,7 +1394,7 @@ function renderAirlineSentimentMap(data){
       .attr("d",path)
       .attr("fill",f=>{
         const market=marketFromGeoFeature(f);
-        if(!market) return "#e8e2f4";
+        if(!market) return TPMapStyle.NODATA;
         return displayedMarketFill(market);
       })
       .attr("opacity",f=>{
@@ -4259,7 +4314,7 @@ function renderDestinationComprehensive() {
     "oceania": [134, -25]
   };
 
-  const HEAT5 = ["#FFF3B0","#FFE066","#FFC21A","#FF9A1F","#F2600C"];
+  const HEAT5 = TPMapStyle.HEAT5;
 
   (function renderDestinationMap() {
     const mapEl = document.getElementById("destBlockMap");
@@ -4301,7 +4356,7 @@ function renderDestinationComprehensive() {
     // Discrete 5-bucket color scale matching overview heat map
     const posVals = DEST_DATA.map(d => d.marPos).sort((a, b) => a - b);
     const qScale = d3.scaleQuantile().domain(posVals).range(HEAT5);
-    const colorScale = v => v !== undefined && v !== null ? qScale(v) : "#e8e2f4";
+    const colorScale = v => v !== undefined && v !== null ? qScale(v) : TPMapStyle.NODATA;
 
     // Draw world countries — sorted largest-area-first so small destination
     // countries (UAE, Qatar, Singapore, etc.) always render on top of neighbors.
@@ -4324,7 +4379,7 @@ function renderDestinationComprehensive() {
       .attr("fill", d => {
         const did = getDestIdForCountryName(d.properties?.name, d.properties?.iso_a3);
         const dest = DEST_DATA.find(x => x.id === did);
-        if (!dest) return "#e8e2f4";
+        if (!dest) return TPMapStyle.NODATA;
         return colorScale(dest.marPos);
       })
       .attr("stroke", d => {
@@ -4369,7 +4424,7 @@ function renderDestinationComprehensive() {
         s.append("circle").attr("r", 4.5)
           .attr("fill", t => {
             const dest = DEST_DATA.find(x => x.id === t.id);
-            return dest ? colorScale(dest.marPos) : "#ddd8ee";
+            return dest ? colorScale(dest.marPos) : TPMapStyle.NODATA;
           })
           .attr("stroke", "#000").attr("stroke-width", 1.2);
         s.append("text").attr("x", 6).attr("y", 3).attr("font-size", 7).attr("fill", "#444")
@@ -4727,12 +4782,12 @@ const _geoName = m => ({"Russian Federation":"Russia","Korea, Republic of (South
 function _mapColorScale(v, mode, heatMetric) {
   /* Simplified colour lookup matching the full render logic */
   if (heatMetric) {
-    const cfg = METRIC_CFG[heatMetric]; if (!cfg) return "#e8e2f4";
+    const cfg = METRIC_CFG[heatMetric]; if (!cfg) return TPMapStyle.NODATA;
     const t = Math.max(0, Math.min(1, (v - cfg.min) / (cfg.max - cfg.min)));
     return d3.interpolateRgb(cfg.c0, cfg.c100||cfg.c50||"#530095")(t);
   }
   /* TSI heat: 5 buckets matching HEAT5 palette */
-  const HEAT5=["#FFF3B0","#FFE066","#FFC21A","#FF9A1F","#F2600C"];
+  const HEAT5=TPMapStyle.HEAT5;
   return HEAT5[Math.min(4, Math.floor(v * 5))];
 }
 function _mapCacheKey(sel, mode, heatMetric) {
@@ -4742,9 +4797,37 @@ function _mapCacheKey(sel, mode, heatMetric) {
 }
 function invalidateMapCache() { Object.keys(_mapCache).forEach(k => delete _mapCache[k]); }
 
+/* ---------- Source Market Overview: sentiment score per source market ----------
+   score = (positive − negative) ÷ total × 100, summed over all four waves, from each market's social-listening file
+   (data/sentiment-<market>.json): the same data and formula the sentiment gauges use. Loaded once, then cached. */
+window.__tpSrcScores=null; let _srcScoresLoading=null;
+function loadSourceSentimentScores(){
+  if(window.__tpSrcScores) return Promise.resolve(window.__tpSrcScores);
+  if(_srcScoresLoading) return _srcScoresLoading;
+  const urls=(typeof _manifest!=="undefined"&&_manifest&&_manifest.sentiment)||null;
+  if(!urls) return Promise.resolve(null);                       /* data manifest not ready yet: the next draw tries again */
+  const get=u=>typeof fetchChunk==="function"?fetchChunk(u):fetch(u).then(r=>r.json());
+  _srcScoresLoading=Promise.all(MARKETS.map(m=>{
+    const u=urls[m]; if(!u) return Promise.resolve([m,null]);
+    return get(u).then(d=>[m,d],()=>[m,null]);
+  })).then(rows=>{
+    const out={};
+    rows.forEach(([m,d])=>{
+      const wt=d&&d.wave_totals; if(!wt) return;
+      let pos=0,neg=0,tot=0; Object.values(wt).forEach(w=>{pos+=w.pos||0;neg+=w.neg||0;tot+=w.total||0;});
+      if(tot>0) out[m]={score:(pos-neg)/tot*100,total:tot};
+    });
+    window.__tpSrcScores=out; return out;
+  }).catch(()=>{ window.__tpSrcScores={}; return {}; });
+  return _srcScoresLoading;
+}
+
 function renderGlobalMap(sel,mode,heatMetric,rowFilter){
   const el=document.querySelector(sel); if(!el) return;
   const isOverview=(sel==="#overviewMap");
+  if(isOverview&&!window.__tpSrcScores){
+    loadSourceSentimentScores().then(res=>{ if(res){ _mapCache[sel]=null; renderGlobalMap(sel,mode,heatMetric,rowFilter); } });
+  }
 
   /* ── Dimensions ──────────────────────────────────────────────── */
   const w=Math.max(400,el.clientWidth||500);
@@ -4813,7 +4896,10 @@ function renderGlobalMap(sel,mode,heatMetric,rowFilter){
   const TINY=new Set(); // Bahrain and Singapore are real GeoJSON polygons
 
   /* ── Compute per-market metrics ──────────────────────────────── */
-  const rows=rowFilter?activeRows().filter(rowFilter):activeRows();
+  /* Source map: colour every market by ITS OWN respondent count, whichever market is selected, so selecting one
+     country never blanks out the others (all filters still apply except the Market selection itself). */
+  const baseRows=isOverview?contextRows("Market"):activeRows();
+  const rows=rowFilter?baseRows.filter(rowFilter):baseRows;
   const safeRows=rows.length?rows:(DATA?DATA.records:[]);
   const byMarket={};
   MARKETS.forEach(m=>{
@@ -4842,27 +4928,21 @@ function renderGlobalMap(sel,mode,heatMetric,rowFilter){
   const cfg=METRIC_CFG[activeMetric]||METRIC_CFG.respondents;
 
   const getVal=m=>{
+    if(isOverview){ const sc=(window.__tpSrcScores||{})[m]; return sc&&Number.isFinite(sc.score)?sc.score:null; }   /* sentiment score */
     const bm=byMarket[m]; if(!bm||!bm.n) return null;
     return activeMetric==="respondents"?bm.n:(bm[activeMetric]??null);
   };
+  const tipCfg=isOverview?{label:"Score",fmt:v=>hotelSentimentScoreText(v)}:cfg;
+  const tipN=mn=>isOverview?(((window.__tpSrcScores||{})[mn]||{}).total||0):((byMarket[mn]||{}).n);
 
   /* ── 5-bucket discrete palette for overview heat map ─────────── */
-  const HEAT5=["#FFF3B0","#FFE066","#FFC21A","#FF9A1F","#F2600C"];
+  const HEAT5=TPMapStyle.HEAT5;
   const HEAT5_LABELS=["Low","Med-Low","Medium","Med-High","High"];
 
   let colorScale;
   if(isOverview){
-    /* Compute all market values for quantile bucketing */
-    const allVals=MARKETS.map(m=>getVal(m)).filter(v=>v!==null).sort((a,b)=>a-b);
-    if(allVals.length){
-      const q=d3.scaleQuantile().domain(allVals).range(HEAT5);
-      colorScale=v=>q(v);
-      /* hand the real bucket cut points to the shared legend (map-legend.js) */
-      window.__tpSourceLegend={cuts:q.quantiles(),min:allVals[0],max:allVals[allVals.length-1]};
-    } else {
-      colorScale=()=>HEAT5[0];
-      window.__tpSourceLegend=null;
-    }
+    colorScale=v=>TPMapStyle.sentColor(v);          /* exactly the colours of the Destination / Airline / Hotels maps */
+    window.__tpSourceLegend=null;
   } else {
     if(cfg.midpoint!==undefined){
       const pct=(cfg.midpoint-cfg.min)/(cfg.max-cfg.min);
@@ -4886,7 +4966,7 @@ function renderGlobalMap(sel,mode,heatMetric,rowFilter){
   };
   const marketFill=mn=>{
     const v=getVal(mn);
-    return v!==null?colorScale(v):"#ddd8ee";
+    return v!==null?colorScale(v):TPMapStyle.NODATA;
   };
   const displayedMarketFill=mn=>marketFill(mn);
   const geoToMarket={};
@@ -4924,7 +5004,7 @@ function renderGlobalMap(sel,mode,heatMetric,rowFilter){
       .attr("data-geoname",f=>f.properties?.name||null)
       .attr("fill",f=>{
         const mn=marketFromGeoFeature(f);
-        if(!mn) return "#e8e2f4";
+        if(!mn) return TPMapStyle.NODATA;
         return displayedMarketFill(mn);
       })
       .attr("opacity",f=>{
@@ -4952,8 +5032,7 @@ function renderGlobalMap(sel,mode,heatMetric,rowFilter){
       .on("mousemove",(e,f)=>{
         const mn=marketFromGeoFeature(f);if(!mn)return;
         const v=getVal(mn);if(v===null){hideTip();return;}
-        const bm=byMarket[mn]||{};
-        showTip(e,{label:mn,value:`${cfg.label}: ${cfg.fmt(v)}  (n=${bm.n})`},true);
+        showTip(e,{label:mn,value:`${tipCfg.label}: ${tipCfg.fmt(v)}  (n=${tipN(mn)})`},true);
       })
       .on("mouseleave",hideTip);
 
@@ -4982,7 +5061,7 @@ function renderGlobalMap(sel,mode,heatMetric,rowFilter){
         .text(m=>m==="Singapore"?"SG":"BH");
     })
     .on("click",(e,m)=>selectMarketFromMap(m))
-    .on("mousemove",(e,m)=>{const v=getVal(m);if(v===null){hideTip();return;}const bm=byMarket[m]||{};showTip(e,{label:m,value:`${cfg.label}: ${cfg.fmt(v)}  (n=${bm.n})`},true);})
+    .on("mousemove",(e,m)=>{const v=getVal(m);if(v===null){hideTip();return;}showTip(e,{label:m,value:`${tipCfg.label}: ${tipCfg.fmt(v)}  (n=${tipN(m)})`},true);})
     .on("mouseleave",hideTip);
 
   /* (the old dark "Selected / n = … respondents" callout was removed: the chip + snapshot button in the map corner replace it) */
@@ -6986,12 +7065,13 @@ function setFilterDim(dim){
   }
   injectCss();
 
-  var HEAT5 = ["#FFF3B0", "#FFE066", "#FFC21A", "#FF9A1F", "#F2600C"];   /* same palette as the Source map */
-  var DEFAULT_GRAD = "linear-gradient(to right,#e4003a,#ff7900,#ffd400,#17b800,#008a00,#006f00)";
-  var DEFAULT_NODATA = "#c8c8c8";
-  var SOURCE_NODATA = "#ddd8ee";
+  var HEAT5 = TPMapStyle.HEAT5;   /* same palette as the Source map */
+  var DEFAULT_GRAD = TPMapStyle.sentGradient;
+  var DEFAULT_NODATA = TPMapStyle.NODATA;
+  var SOURCE_NODATA = TPMapStyle.NODATA;
 
   var SENT_MAPS = [
+    { sel: "#overviewMap",         bar: ".sentiment-scale-legend .sentiment-scale-bar", nod: ".sentiment-scale-legend .sentiment-scale-no-data i" },
     { sel: "#airlineSentimentMap", bar: ".sentiment-scale-legend .sentiment-scale-bar", nod: ".sentiment-scale-legend .sentiment-scale-no-data i" },
     { sel: "#hotelSentimentMap",   bar: ".sentiment-scale-legend .sentiment-scale-bar", nod: ".sentiment-scale-legend .sentiment-scale-no-data i" },
     { sel: "#destSentimentMap",    bar: "#destSentimentLegend span[style*='gradient']", nod: null }
@@ -7055,19 +7135,11 @@ function setFilterDim(dim){
 
   var observed = new WeakSet(), timer = null;
   function sync() {
-    var so = document.querySelector("#overviewMap");
-    if (so && so.parentElement) {
-      var info = sourceInfo();
-      put(so.parentElement, "src", info ? info.sig : "", function () { return sourceLegend(info); });
-      watch(so.parentElement);
-    }
+    if (window.TPMapStyle) TPMapStyle.apply();       /* selection look (thin black border + dimmed others) on all four maps */
     SENT_MAPS.forEach(function (m) {
       var map = document.querySelector(m.sel); if (!map || !map.parentElement) return;
       var scope = map.parentElement.parentElement || map.parentElement;
-      var barEl = scope.querySelector(m.bar) || document.querySelector(m.bar);
-      var grad = (barEl && bg(barEl, "backgroundImage")) || DEFAULT_GRAD;
-      var nodEl = m.nod ? (scope.querySelector(m.nod) || document.querySelector(m.nod)) : null;
-      var nod = (nodEl && bg(nodEl, "backgroundColor")) || DEFAULT_NODATA;
+      var grad = DEFAULT_GRAD, nod = DEFAULT_NODATA;     /* the same scale the maps are painted with */
       put(map.parentElement, "sent", "sent|" + grad + "|" + nod, function () { return sentimentLegend(grad, nod); });
       watch(map.parentElement);
     });

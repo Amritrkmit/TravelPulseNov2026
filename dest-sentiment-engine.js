@@ -172,18 +172,15 @@ function _dCalcScore(pos, neu, neg) {
 
 
 
+function _D_NODATA() { return window.TPMapStyle ? TPMapStyle.NODATA : '#e3e3e8'; }
+
 function _dScoreToColour(score) {
 
+  /* same soft red → green scale as the Airline and Hotels maps (defined once in TPMapStyle, app-final.js) */
+  if (window.TPMapStyle) return TPMapStyle.sentColor(score === null || score === undefined ? NaN : Math.max(-100, Math.min(100, score)));
+
   if (score === null || score === undefined || isNaN(score)) return '#d3d3d3';
-
-  const scale = d3.scaleLinear()
-
-    .domain([-100,-50,-10,20,60,100])
-
-    .range(['#e4003a','#ff7900','#ffd400','#17b800','#008a00','#006f00'])
-
-    .clamp(true);
-
+  const scale = d3.scaleLinear().domain([-100,-50,-10,20,60,100]).range(['#e4003a','#ff7900','#ffd400','#17b800','#008a00','#006f00']).clamp(true);
   return scale(Math.max(-100,Math.min(100,score)));
 
 }
@@ -509,11 +506,11 @@ function _dDrawMap() {
 
 
 
-  const W = Math.max(680, (el.clientWidth || 760) - 36);   /* minus container side padding */
+  const W = Math.max(680, el.clientWidth || 760);   /* full width of the map frame (same as the Source map) */
 
   const _fit = mapFitWorld(W);                              /* FIX: map fills the full width */
 
-  const H = _fit.height + 10;
+  const H = _fit.height + 4;                                /* same margin as the Source map */
 
 
 
@@ -601,7 +598,7 @@ function _dDrawMap() {
 
     .attr('data-dgeoname',f=>_dGeoOf(f))
 
-    .attr('fill',f=>sourceFill(_dGeoOf(f),'#d8d4e0'))
+    .attr('fill',f=>sourceFill(_dGeoOf(f),_D_NODATA()))
     .attr('opacity',f=>sourceOpacity(_dGeoOf(f)))
     .attr('stroke',f=>sourceGeoSet.has(_dGeoOf(f))?SOURCE_SELECTED_STROKE:'#000')
     .attr('stroke-width',f=>sourceGeoSet.has(_dGeoOf(f))?4:0.3)
@@ -625,7 +622,7 @@ function _dDrawMap() {
 
       const name=_dGeoOf(f);
 
-      return sourceFill(name, byGeo[name] ? _dScoreToColour(byGeo[name].score) : '#c8c8c8');
+      return sourceFill(name, byGeo[name] ? _dScoreToColour(byGeo[name].score) : _D_NODATA());
 
     })
 
@@ -648,7 +645,7 @@ function _dDrawMap() {
     .append('circle')
     .attr('r',4.2)
     .attr('data-dgeoname',f=>_dGeoOf(f))
-    .attr('fill',f=>{const n=_dGeoOf(f);return sourceFill(n, byGeo[n] ? _dScoreToColour(byGeo[n].score) : '#c8c8c8');})
+    .attr('fill',f=>{const n=_dGeoOf(f);return sourceFill(n, byGeo[n] ? _dScoreToColour(byGeo[n].score) : _D_NODATA());})
     .attr('opacity',f=>sourceOpacity(_dGeoOf(f)))
     .attr('stroke','#000').attr('stroke-width',1.3)
     .style('cursor','pointer');
@@ -803,7 +800,7 @@ function _dSelectCountry(geoName) {
 
     if (name===geoName) {
 
-      p.setAttribute('fill',byGeo[name] ? _dScoreToColour(byGeo[name].score) : '#c8c8c8');
+      p.setAttribute('fill',byGeo[name] ? _dScoreToColour(byGeo[name].score) : _D_NODATA());
 
       p.style.strokeWidth='2.5px'; p.style.stroke='#fff';
 

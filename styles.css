@@ -485,10 +485,10 @@ h2{font-family:Manrope,sans-serif;font-size:12px;margin:0;color:var(--ink);line-
 
 /* ── SOURCE OVERVIEW MAP BANNER BAR ─────────────────────────── */
 .map-banner-bar{
-  background:var(--purple);
-  color:#fff;font-size:10px;font-weight:600;
-  padding:7px 14px;margin-bottom:0;
-  border-radius:3px 3px 0 0;
+  background:var(--purple)!important;           /* the same purple on every map tab */
+  color:#fff;font-size:11px;font-weight:700;
+  padding:10px 16px;min-height:36px;margin-top:18px;margin-bottom:0;
+  border-radius:4px 4px 0 0;
   display:flex;align-items:center;gap:8px;
   letter-spacing:.01em;line-height:1.4
 }
@@ -4370,12 +4370,12 @@ button#segmentsResetBtn {
 
 /* FIX: draw the white country outline UNDER the fill so tiny islands (Greek isles, Canaries,
    Japanese/Indonesian islands...) are not swallowed by the border stroke. */
-.world-land path, .market-layer path, .d-bg path, .d-fg path { paint-order: stroke fill; stroke-linejoin: round; }
+.world-land path, .market-layer path, .d-bg path, .d-fg path { stroke-linejoin: round; }
 
 /* ── Maps fill the full width; height follows the map (no side gaps) ───────── */
 #airlineSentimentMap, #hotelSentimentMap, #destSentimentMap {
   height: auto !important; min-height: 0 !important;
-  align-items: center !important; justify-content: center !important; padding: 8px 18px 0 !important;
+  align-items: center !important; justify-content: center !important; padding: 0 !important;   /* full width: same as the Source map */
 }
 #airlineSentimentMap svg, #hotelSentimentMap svg, #destSentimentMap svg {
   width: 100% !important; height: auto !important;
@@ -4410,4 +4410,42 @@ button#segmentsResetBtn {
 ) .pp-chart .pp-svg {
   width: 240px;
   height: 240px;
+}
+
+/* ══ ONE MAP FRAME FOR ALL FOUR MAPS (Source, Destination, Airline, Hotels) ═══════════════════
+   same width, same background, same border, and the map takes the height its shape needs (no fixed box) */
+#overviewPanel .overview-map-wrapper,
+.tab-panel[data-panel="airline"] .hotel-sentiment-map-wrapper,
+.tab-panel[data-panel="hotel"] .hotel-sentiment-map-wrapper,
+#destMapWrapper{
+  grid-template-columns:minmax(0,1fr);
+  min-height:0;
+  margin-bottom:18px;
+  background:#fff;
+  border:1px solid #e7def2;border-top:none;
+  border-radius:0 0 4px 4px;
+  box-shadow:0 8px 24px rgba(35,11,84,.08);
+  overflow:hidden;
+}
+#overviewPanel .overview-map-left,
+.tab-panel[data-panel="airline"] .hotel-sentiment-map-wrapper .overview-map-left,
+.tab-panel[data-panel="hotel"] .hotel-sentiment-map-wrapper .overview-map-left,
+#destMapLeft{
+  min-height:0;
+  background:#faf7ff;
+  border-right:0;
+}
+#overviewMap, #airlineSentimentMap, #hotelSentimentMap, #destSentimentMap{
+  position:relative;
+  display:block;
+  width:100%;
+  height:auto;
+  min-height:0;
+  padding:0;
+  overflow:hidden;
+}
+#overviewMap svg, #airlineSentimentMap svg, #hotelSentimentMap svg, #destSentimentMap svg{
+  display:block;
+  width:100%;
+  height:auto;
 }
