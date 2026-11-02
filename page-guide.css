@@ -23,6 +23,7 @@
   margin:0 0 12px;
   font-family:'DM Sans',system-ui,sans-serif;
   color:#1f1147;
+  display: none;
 }
 .tp-guide-full{
   display:flex; gap:16px; align-items:flex-start;

@@ -40,6 +40,7 @@
   position:absolute; top:10px; right:10px; z-index:12;
   display:flex; flex-direction:column; align-items:flex-end; gap:8px;
   max-width:calc(100% - 20px);
+  display:none;
 }
 .map-chip-stack > [data-chip="market"]{ order:1 }
 .map-chip-stack > [data-chip="dest"]{ order:2 }
