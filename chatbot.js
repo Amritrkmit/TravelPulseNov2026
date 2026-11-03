@@ -324,7 +324,9 @@
 
   function callOpenAI(userMessage, apiKey, onDone, onError) {
     tryBases(candidateBases(), 0, userMessage)
-      .then(function (d) { onDone(d.answer || 'No answer available'); })
+     .then(function (d) {
+  onDone(d.reply || d.answer || 'No answer available');
+})
       .catch(function (e) { onError(friendlyError(e)); });
   }
 
