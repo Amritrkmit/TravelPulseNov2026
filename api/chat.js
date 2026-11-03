@@ -121,35 +121,26 @@ app.post('/api/chat', function (req, res) {
 
 /* ── Agent caller ─────────────────────────────────────────────── */
 function callAgent(messages, existingThreadId) {
-  /*
-   * OpenAI Responses API (Agents / Assistants)
-   * POST https://api.openai.com/v1/responses
-   * Headers: OpenAI-Beta: agents=v1
-   */
-  var body = {
-    agent:    AGENT_ID,
-    messages: messages,
-    stream:   false
-  };
-  if (existingThreadId) {
-    body.conversation_id = existingThreadId;
-  }
-
   return fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + OPENAI_KEY,
-      'OpenAI-Beta': 'agents=v1'
+      'Authorization': 'Bearer ' + OPENAI_KEY
     },
-    body: JSON.stringify(body),
-    timeout: 30000
+    body: JSON.stringify({
+      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+      input: messages,
+      stream: false
+    }),
+    timeout: 60000
   })
   .then(function (resp) {
     if (!resp.ok) {
       return resp.text().then(function (txt) {
         var msg = 'OpenAI API error ' + resp.status;
-        try { msg = JSON.parse(txt).error.message || msg; } catch(_) {}
+        try {
+          msg = JSON.parse(txt).error.message || msg;
+        } catch (_) {}
         throw new Error(msg);
       });
     }
@@ -157,8 +148,8 @@ function callAgent(messages, existingThreadId) {
   })
   .then(function (data) {
     return {
-      reply:    extractReply(data),
-      threadId: data.conversation_id || data.id || null
+      reply: extractReply(data),
+      threadId: null
     };
   });
 }
