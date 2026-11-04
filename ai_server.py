@@ -114,16 +114,20 @@ TOOLS=[
  {'type':'function','function':{'name':'dashboard_json_catalog','description':'Find dashboard JSON files by name to identify corroborating data sources; does not itself validate metrics.','parameters':{'type':'object','properties':{'query':{'type':'string'},'limit':{'type':'integer'}}}}},
  {'type':'function','function':{'name':'survey_profile','description':'Get authoritative master dataset metadata and known question codes.','parameters':{'type':'object','properties':{}}}},
  {'type':'function','function':{'name':'search_fields','description':'Search full workbook headers to identify a survey field or question code.','parameters':{'type':'object','properties':{'query':{'type':'string'}},'required':['query']}}},
+ {'type':'function','function':{'name':'field_values','description':'List the observed answer options for a known field. Use this to confirm available codes and filter values before analyzing.','parameters':{'type':'object','properties':{'field_code':{'type':'string'},'top':{'type':'integer'}},'required':['field_code']}}},
  {'type':'function','function':{'name':'analyze','description':'Calculate counts and valid-base percentages for any single-response field; supports AND filters, OR values and grouped comparisons. Use QS0 for country, Q14 for airline, Q21 for hotel, Q10 for budget, QHIDCLUSTER for region.','parameters':{'type':'object','properties':{'field_code':{'type':'string'},'filters':{'type':'array','items':{'type':'object','properties':{'field':{'type':'string'},'value':{'type':'string'},'values':{'type':'array','items':{'type':'string'}},'operator':{'type':'string','enum':['equals','contains','not_equals']}},'required':['field']}},'group_by':{'type':'string'},'top':{'type':'integer'}},'required':['field_code']}}},
- {'type':'function','function':{'name':'multiselect','description':'Calculate multi-select checkbox question distributions such as Q16 (airline considerations), Q9 (destination considerations), Q11 (budget reduction methods). Use valid eligible respondent base.','parameters':{'type':'object','properties':{'prefix':{'type':'string'},'filters':{'type':'array','items':{'type':'object','properties':{'field':{'type':'string'},'value':{'type':'string'},'values':{'type':'array','items':{'type':'string'}},'operator':{'type':'string'}},'required':['field']}},'top':{'type':'integer'}},'required':['prefix']}}}
+ {'type':'function','function':{'name':'multiselect','description':'Calculate checkbox multi-select distributions for Q9, Q11, or Q16. Pass the base question code without a trailing underscore (for example prefix="Q9"); filters are ANDed and values inside a filter are ORed. Do not use for Q3 destination responses.','parameters':{'type':'object','properties':{'prefix':{'type':'string'},'filters':{'type':'array','items':{'type':'object','properties':{'field':{'type':'string'},'value':{'type':'string'},'values':{'type':'array','items':{'type':'string'}},'operator':{'type':'string'}},'required':['field']}},'top':{'type':'integer'}},'required':['prefix']}}},
+ {'type':'function','function':{'name':'multi_response','description':'Aggregate repeated destination or other response fields. For destinations considered in Q3 use fields ["Q3_1","Q3_2","Q3_3"]. Counts each respondent once per answer across the listed fields. Do not use the checkbox multiselect tool for these text/choice fields.','parameters':{'type':'object','properties':{'field_codes':{'type':'array','items':{'type':'string'}},'filters':{'type':'array','items':{'type':'object','properties':{'field':{'type':'string'},'value':{'type':'string'},'values':{'type':'array','items':{'type':'string'}},'operator':{'type':'string'}},'required':['field']}},'top':{'type':'integer'}},'required':['field_codes']}}}
 ]
 from agent_instructions import SYSTEM
 from answer_filter import strip_counts, has_small_base, finalize_answer
-from survey_engine import analyze, multiselect, search_fields, survey_profile, dashboard_json_catalog
+from survey_engine import analyze, field_values, multi_response, multiselect, search_fields, survey_profile, dashboard_json_catalog
 
 FUNCTIONS = {
     'analyze': analyze,
+    'field_values': field_values,
     'multiselect': multiselect,
+    'multi_response': multi_response,
     'search_fields': search_fields,
     'survey_profile': survey_profile,
     'dashboard_json_catalog': dashboard_json_catalog,
@@ -142,7 +146,7 @@ def chat(req:ChatRequest):
     if not os.getenv('OPENAI_API_KEY'):raise HTTPException(503,'Set OPENAI_API_KEY in .env and restart server.')
     h,rows=data()
     client=OpenAI(api_key=os.environ['OPENAI_API_KEY'],timeout=45,max_retries=1)
-    messages=[{'role':'system','content':SYSTEM+f'\nWorkbook contains {len(rows)} respondent rows and {len(h)} columns. Mandatory: call a calculation tool before answering any numerical question. QS0 is source country, Q14 preferred airline, Q21 hotel brand, Q10 budget change. For grouped comparisons use analyze with group_by; for Q9/Q11/Q16 checkbox questions use multiselect. A zero base must be investigated by checking field mappings and filter values. Never present a JSON catalog as computed evidence.'}]
+    messages=[{'role':'system','content':SYSTEM+f'\nWorkbook contains {len(rows)} respondent rows and {len(h)} columns. Mandatory: call a calculation tool before answering any numerical question. QS0 is source country, Q14 preferred airline, Q21 hotel brand, Q10 budget change, QHIDAGE age, and QHIDCLUSTER region. Use analyze for single-response fields and grouped comparisons. For destination consideration use multi_response with Q3_1, Q3_2, and Q3_3. For checkbox questions Q9, Q11, and Q16 use multiselect with the base code only (no trailing underscore). Use field_values to verify possible field values; search_fields for unknown codes. If a field such as Q21a does not exist, state that and do not substitute another field. A zero base must be investigated by checking mappings and filter values. Never present a JSON catalog as computed evidence.'}]
     for m in req.history[-10:]:
         if m.get('role') in ('user','assistant') and isinstance(m.get('content'),str):messages.append({'role':m['role'],'content':m['content'][:3000]})
     # Frontend history already includes current user turn.

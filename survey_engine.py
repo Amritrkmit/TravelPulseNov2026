@@ -75,12 +75,19 @@ def multiselect(prefix,filters=None,top=20):
     """For checkbox questions represented as Q16_1...Q16_N, counts checked flags.
     The denominator is the filtered eligible base, excluding records where ALL flags are missing.
     """
-    headers,_=workbook(); pattern=re.compile(r'^'+re.escape(prefix)+r'_(\d+)$',re.I)
+    headers,_=workbook()
+    # Models often pass "Q9_" while the workbook columns are Q9_1, Q9_2, ...
+    # Remove a trailing separator before adding the one in the pattern.
+    base=str(prefix).strip().strip('_')
+    if base.casefold()=='q3':
+        return {'error':'Q3 destinations are repeated response fields, not checkboxes.',
+                'use_tool':'multi_response','field_codes':['Q3_1','Q3_2','Q3_3']}
+    pattern=re.compile(r'^'+re.escape(base)+r'_(\d+)$',re.I)
     matches=[]
     for i,h in enumerate(headers):
         m=pattern.fullmatch(h.split(':',1)[0].strip())
         if m:matches.append((int(m.group(1)),i,h))
-    if not matches:return {'error':'No checkbox fields found for '+prefix}
+    if not matches:return {'error':'No checkbox fields found for '+base,'prefix_used':base}
     rows=filter_rows(filters)
     eligible=[r for r in rows if any(valid(r[i]) for _,i,_ in matches)]
     counts=[]
@@ -89,6 +96,45 @@ def multiselect(prefix,filters=None,top=20):
         label=h.split('(',1)[-1].rstrip(')') if '(' in h else h
         counts.append({'field':h.split(':',1)[0].strip(),'label':label,'count':c,'percent':round(100*c/len(eligible),2) if eligible else 0})
     return {'question_prefix':prefix,'filtered_respondents':len(rows),'valid_base':len(eligible),'multi_select':True,'unweighted':True,'results':sorted(counts,key=lambda x:-x['count'])[:max(1,min(int(top),50))]}
+
+def multi_response(field_codes,filters=None,top=20):
+    """Aggregate repeated text/choice response columns, counting each respondent once per answer."""
+    if isinstance(field_codes,str):field_codes=[field_codes]
+    if not isinstance(field_codes,list) or not field_codes or len(field_codes)>12:
+        raise ValueError('Provide between 1 and 12 response field codes')
+    headers,_=workbook()
+    indexes=[field(code) for code in field_codes]
+    rows=filter_rows(filters)
+    counts=collections.Counter(); labels={}; eligible=0
+    for row in rows:
+        answers={}
+        for index in indexes:
+            value=row[index]
+            if valid(value):
+                label=re.sub(r'\s+',' ',str(value).strip())
+                key=norm(label)
+                if key:answers.setdefault(key,label)
+        if answers:
+            eligible+=1
+            for key,label in answers.items():
+                counts[key]+=1
+                labels.setdefault(key,label)
+    results=[{'label':labels[key],'count':count,'percent':round(count*100/eligible,2) if eligible else 0}
+             for key,count in counts.most_common(max(1,min(int(top),50)))]
+    return {'fields':[headers[index] for index in indexes],
+            'filtered_respondents':len(rows),'valid_base':eligible,
+            'multi_response':True,'unweighted':True,
+            'denominator':'respondents with at least one valid response in the selected fields',
+            'results':results}
+
+def field_values(field_code,top=40):
+    """List observed response options for one workbook field, with aggregated counts."""
+    headers,rows=workbook(); index=field(field_code)
+    counts=collections.Counter(str(row[index]).strip() for row in rows if valid(row[index]))
+    base=sum(counts.values())
+    return {'field':headers[index],'valid_base':base,'distinct_values':len(counts),
+            'values':[{'value':value,'count':count,'percent':round(count*100/base,2) if base else 0}
+                      for value,count in counts.most_common(max(1,min(int(top),100)))]}
 
 def survey_profile():
     h,r=workbook()
